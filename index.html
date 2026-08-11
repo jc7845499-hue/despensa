@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Despensa</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app" style="display: none;">
+    <div class="container">
+        <h1>Registro de Despensa</h1>
+
+        <div class="message" id="message" style="display: none;"></div>
+
+        <div class="form-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0; border: none; padding: 0;">Productos a Surtir</h2>
+                <div>
+                    <button id="btn-usuario" class="small outline" onclick="doLogout()" style="display: none; margin-right: 8px;">👤</button>
+                    <button id="new-pantry-btn" class="small outline" onclick="nuevaDespensa()" style="display: none;">Nueva Despensa</button>
+                </div>
+            </div>
+            <p style="font-size: 13px; color: #777; margin-bottom: 12px;">Define los productos que comprarás, cuántas unidades necesitas y el precio aproximado por unidad.</p>
+            <div id="shopping-inputs">
+                <div class="shopping-item">
+                    <input type="text" id="shopping-name" placeholder="Nombre del producto..." list="shopping-names" onkeypress="handleShoppingKeypress(event)">
+                    <input type="number" id="shopping-qty" placeholder="Cant." min="1" value="1" onkeypress="handleShoppingKeypress(event)">
+                    <input type="number" id="shopping-approx-price" placeholder="Precio aprox. ($)" step="0.01" min="0" onkeypress="handleShoppingKeypress(event)">
+                    <button onclick="agregarDesdeShopping()" style="width: auto; padding: 10px 12px;">+</button>
+                </div>
+            </div>
+            <button class="outline" id="btn-ver-anteriores" onclick="toggleSavedLists()">Ver Despensas Anteriores</button>
+        </div>
+
+        <div class="form-section">
+            <h2>Registrar Precio por Unidad</h2>
+            <div class="form-group">
+                <label for="product-name">Nombre del Producto</label>
+                <input type="text" id="product-name" placeholder="Ej: Arroz, Leche, Pan..." list="product-names" onkeypress="handleProductKeypress(event)">
+            </div>
+            <div class="form-group">
+                <label for="product-price">Precio por Unidad ($)</label>
+                <input type="number" id="product-price" placeholder="Ej: 25.50" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+                <label for="product-qty">Cantidad de Unidades a Comprar</label>
+                <input type="number" id="product-qty" placeholder="Ej: 2" step="1" min="1" value="1">
+            </div>
+            <button id="add-btn" onclick="agregarProducto()">Agregar Producto</button>
+        </div>
+
+        <div class="form-section">
+            <h2>Productos Registrados</h2>
+            <div id="product-list">
+                <p style="color: #999; text-align: center;">No hay productos registrados</p>
+            </div>
+        </div>
+
+        <div class="total-section">
+            <div class="total-label">Precio Total a Pagar</div>
+            <div class="total-row">
+                <div>
+                    <div class="total-amount" id="total-price">$0.00</div>
+                    <div class="total-approx" id="total-approx" style="display: none; font-size: 14px; margin-top: 5px; opacity: 0.9;">
+                        Suma aproximada estimada: $0.00
+                    </div>
+                </div>
+                <button class="red" id="btn-finalizar-registro" onclick="confirmarFinalizarCompleto()">Finalizar Registro</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <div id="login-screen">
+        <div class="login-card">
+            <h2 id="login-title">Iniciar Sesión</h2>
+            <div class="form-group">
+                <label for="login-username">Usuario</label>
+                <input type="text" id="login-username" placeholder="Nombre de usuario" onkeypress="if(event.key==='Enter') document.getElementById('login-password').focus()">
+            </div>
+            <div class="form-group">
+                <label for="login-password">Contraseña</label>
+                <div class="password-wrapper">
+                    <input type="password" id="login-password" placeholder="Contraseña" onkeypress="if(event.key==='Enter') document.getElementById('login-submit').click()">
+                    <button type="button" id="toggle-password" class="password-toggle" onclick="togglePassword()">👁</button>
+                </div>
+            </div>
+            <p id="login-error" style="color: #c62828; font-size: 13px; margin-bottom: 10px; display: none;"></p>
+            <button id="login-submit" class="green" onclick="doLogin()" style="margin-bottom: 8px;">Iniciar Sesión</button>
+            <button class="outline" onclick="doRegister()" style="margin-bottom: 8px;">Crear Cuenta</button>
+        </div>
+    </div>
+
+    <div class="modal" id="confirm-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeConfirmModal()">&times;</span>
+            <h3 id="confirm-title">Confirmar</h3>
+            <p id="confirm-message"></p>
+            <button class="green inline small" onclick="confirmarSi()">Sí</button>
+            <button class="outline inline small" onclick="confirmarNo()">No</button>
+        </div>
+    </div>
+
+    <div class="modal" id="saved-lists-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeSavedLists()">&times;</span>
+            <h2 style="margin-bottom: 15px;">Despensas Anteriores</h2>
+            <div id="saved-lists-container">
+                <p style="color: #999;">No hay despensas anteriores</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="resumen-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeResumenModal()">&times;</span>
+            <h3 id="resumen-title">Resumen de Despensa</h3>
+            <div id="resumen-body" style="text-align: left; margin-top: 10px;"></div>
+            <button class="green inline small" onclick="closeResumenModal()" style="margin-top: 15px;">Aceptar</button>
+        </div>
+    </div>
+
+    <datalist id="shopping-names"></datalist>
+    <datalist id="product-names"></datalist>
+
+    <script src="script.js"></script>
+</body>
+</html>
