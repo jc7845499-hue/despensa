@@ -67,32 +67,27 @@ function initUserContext() {
 async function generateSalt() {
     const salt = new Uint8Array(16);
     crypto.getRandomValues(salt);
-    return btoa(String.fromCharCode(...salt));
-}
-
-function simpleHash(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
-    }
-    return btoa(Math.abs(hash).toString(16));
+    return btoa(String.fromCharCode.apply(null, salt));
 }
 
 async function hashPassword(password, saltBase64) {
-    if (!crypto || !crypto.subtle) {
+    try {
+        if (!crypto || !crypto.subtle) {
+            return simpleHash(saltBase64 + password);
+        }
+        const encoder = new TextEncoder();
+        const saltBytes = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
+        const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+        const derivedBits = await crypto.subtle.deriveBits(
+            { name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' },
+            keyMaterial,
+            256
+        );
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(derivedBits)));
+    } catch (e) {
+        console.warn('Fallo crypto.subtle, usando fallback:', e);
         return simpleHash(saltBase64 + password);
     }
-    const encoder = new TextEncoder();
-    const saltBytes = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
-    const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
-    const derivedBits = await crypto.subtle.deriveBits(
-        { name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' },
-        keyMaterial,
-        256
-    );
-    return btoa(String.fromCharCode(...new Uint8Array(derivedBits)));
 }
 
 async function migratePlaintextUsers() {
@@ -126,6 +121,12 @@ async function doLogin() {
         return;
     }
 
+    if (typeof localStorage === 'undefined') {
+        errorEl.textContent = 'El navegador no soporta almacenamiento local';
+        errorEl.style.display = 'block';
+        return;
+    }
+
     const usuarios = getUsuarios();
     const usuario = usuarios.find(u => u.username === username);
 
@@ -135,19 +136,25 @@ async function doLogin() {
         return;
     }
 
-    const hash = await hashPassword(password, usuario.salt);
-    if (hash !== usuario.hash) {
-        errorEl.textContent = 'Usuario o contraseña incorrectos';
-        errorEl.style.display = 'block';
-        return;
-    }
+    try {
+        const hash = await hashPassword(password, usuario.salt);
+        if (hash !== usuario.hash) {
+            errorEl.textContent = 'Usuario o contraseña incorrectos';
+            errorEl.style.display = 'block';
+            return;
+        }
 
-    setUsuarioActual(username);
-    currentUser = username;
-    hideLoginScreen();
-    actualizarDatalists();
-    renderProductos();
-    actualizarBotonUsuario();
+        setUsuarioActual(username);
+        currentUser = username;
+        hideLoginScreen();
+        actualizarDatalists();
+        renderProductos();
+        actualizarBotonUsuario();
+    } catch (error) {
+        console.error('Error en login:', error);
+        errorEl.textContent = 'Error al iniciar sesión';
+        errorEl.style.display = 'block';
+    }
 }
 
 async function doRegister() {
@@ -165,6 +172,12 @@ async function doRegister() {
 
     if (password.length < 4) {
         errorEl.textContent = 'La contraseña debe tener al menos 4 caracteres';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (typeof localStorage === 'undefined') {
+        errorEl.textContent = 'El navegador no soporta almacenamiento local';
         errorEl.style.display = 'block';
         return;
     }
@@ -190,7 +203,8 @@ async function doRegister() {
         actualizarBotonUsuario();
     } catch (error) {
         console.error('Error en registro:', error);
-        errorEl.textContent = 'Error al crear la cuenta. Asegúrate de usar HTTPS o localhost.';
+        const errorMsg = error && error.message ? error.message : 'Error desconocido';
+        errorEl.textContent = 'Error al crear la cuenta: ' + errorMsg;
         errorEl.style.display = 'block';
     }
 }
