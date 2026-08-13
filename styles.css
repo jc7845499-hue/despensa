@@ -66,7 +66,11 @@ button.inline { display: inline-block; width: auto; margin-right: 8px; }
 .password-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #999; cursor: pointer; font-size: 16px; padding: 4px; width: auto; min-width: auto; }
 .password-toggle:hover { color: #333; background: none; }
 
-#admin-modal table th { background: #f5f5f5; font-weight: 600; }
-#admin-modal table td { padding: 10px 8px; }
-#admin-modal button { margin-bottom: 0; }
-#admin-modal input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+#admin-view table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+#admin-view table th { background: #f5f5f5; font-weight: 600; padding: 10px; text-align: center; border-right: 1px solid #ddd; }
+#admin-view table th:last-child { border-right: none; }
+#admin-view table td { padding: 10px; text-align: center; border-right: 1px solid #ddd; }
+#admin-view table td:last-child { border-right: none; }
+#admin-view table tr { border-bottom: 1px solid #eee; }
+#admin-view button { margin-bottom: 0; }
+#admin-view input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }

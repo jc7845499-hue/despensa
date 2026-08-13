@@ -153,9 +153,11 @@ async function doLogin() {
         currentUser = username;
         finalizado = getFinalizado();
         hideLoginScreen();
-        actualizarDatalists();
-        renderProductos();
-        actualizarBotonUsuario();
+        if (!esAdmin()) {
+            actualizarDatalists();
+            renderProductos();
+            actualizarBotonUsuario();
+        }
     } catch (error) {
         console.error('Error en login:', error);
         errorEl.textContent = 'Error al iniciar sesión';
@@ -205,9 +207,11 @@ async function doRegister() {
         currentUser = username;
         finalizado = getFinalizado();
         hideLoginScreen();
-        actualizarDatalists();
-        renderProductos();
-        actualizarBotonUsuario();
+        if (!esAdmin()) {
+            actualizarDatalists();
+            renderProductos();
+            actualizarBotonUsuario();
+        }
     } catch (error) {
         console.error('Error en registro:', error);
         const errorMsg = error && error.message ? error.message : 'Error desconocido';
@@ -232,6 +236,8 @@ function doLogout() {
     limpiarInputs();
     renderProductos();
     actualizarBotonUsuario();
+    const adminView = document.getElementById('admin-view');
+    if (adminView) adminView.style.display = 'none';
     showLoginScreen();
 }
 
@@ -314,25 +320,20 @@ function actualizarDatalists() {
 }
 
 function actualizarBotonUsuario() {
+    if (esAdmin()) {
+        return;
+    }
     const btnUsuario = document.getElementById('btn-usuario');
     const btnNuevaDespensa = document.getElementById('new-pantry-btn');
-    const btnAdmin = document.getElementById('btn-admin');
     if (btnUsuario && btnNuevaDespensa) {
         if (currentUser) {
             btnUsuario.style.display = 'inline-block';
             btnUsuario.textContent = 'Cerrar Sesión';
-            if (esAdmin()) {
-                btnNuevaDespensa.style.display = 'none';
-            } else {
-                btnNuevaDespensa.style.display = finalizado ? 'inline-block' : 'none';
-            }
+            btnNuevaDespensa.style.display = finalizado ? 'inline-block' : 'none';
         } else {
             btnUsuario.style.display = 'none';
             btnNuevaDespensa.style.display = 'none';
         }
-    }
-    if (btnAdmin) {
-        btnAdmin.style.display = (currentUser && esAdmin()) ? 'inline-block' : 'none';
     }
     if (esAdmin()) {
         deshabilitarControlesAdmin();
@@ -488,7 +489,7 @@ function renderizarPanelAdmin() {
     table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 10px;';
     const headerRow = document.createElement('tr');
     headerRow.style.cssText = 'border-bottom: 2px solid #1a73e8;';
-    ['Usuario', 'Rol', 'Acción'].forEach(text => {
+    ['Usuario', 'Rol', 'Registros', 'Acción'].forEach(text => {
         const th = document.createElement('th');
         th.style.cssText = 'padding: 8px; text-align: center; border-right: 1px solid #ddd;';
         th.textContent = text;
@@ -509,6 +510,11 @@ function renderizarPanelAdmin() {
         rolCell.style.color = esAdminUser ? '#1a73e8' : '#555';
         rolCell.style.fontWeight = esAdminUser ? 'bold' : 'normal';
         row.appendChild(rolCell);
+        const registrosCell = document.createElement('td');
+        registrosCell.style.cssText = 'padding: 8px; text-align: center; border-right: 1px solid #ddd;';
+        const cantidadRegistros = getCantidadRegistrosUsuario(u.username);
+        registrosCell.textContent = cantidadRegistros;
+        row.appendChild(registrosCell);
         const actionCell = document.createElement('td');
         actionCell.style.cssText = 'padding: 8px; text-align: center;';
         if (!esAdminUser) {
@@ -533,16 +539,14 @@ function renderizarPanelAdmin() {
     container.appendChild(table);
 }
 
-function togglePanelAdmin() {
-    const modal = document.getElementById('admin-modal');
-    modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
-    if (modal.style.display === 'flex') {
-        renderizarPanelAdmin();
-    }
+function getCantidadRegistrosUsuario(username) {
+    const listas = getSavedListsForUser(username);
+    return listas.length;
 }
 
-function closePanelAdmin() {
-    document.getElementById('admin-modal').style.display = 'none';
+function getSavedListsForUser(username) {
+    const data = localStorage.getItem('despensaListasGuardadas_' + username);
+    return data ? JSON.parse(data) : [];
 }
 
 function getFinalizado() {
@@ -979,15 +983,25 @@ function closeResumenModal() {
 function showLoginScreen() {
     const loginScreen = document.getElementById('login-screen');
     const app = document.getElementById('app');
+    const adminView = document.getElementById('admin-view');
     if (loginScreen) loginScreen.style.display = 'flex';
     if (app) app.style.display = 'none';
+    if (adminView) adminView.style.display = 'none';
 }
 
 function hideLoginScreen() {
     const loginScreen = document.getElementById('login-screen');
     const app = document.getElementById('app');
+    const adminView = document.getElementById('admin-view');
     if (loginScreen) loginScreen.style.display = 'none';
-    if (app) app.style.display = 'block';
+    if (esAdmin()) {
+        if (app) app.style.display = 'none';
+        if (adminView) adminView.style.display = 'block';
+        renderizarPanelAdmin();
+    } else {
+        if (app) app.style.display = 'block';
+        if (adminView) adminView.style.display = 'none';
+    }
 }
 
 function finalizarRegistroCompleto() {
@@ -1312,9 +1326,7 @@ migratePlaintextUsers().then(() => {
         if (!loggedIn) {
             showLoginScreen();
         } else {
-            actualizarDatalists();
-            renderProductos();
-            actualizarBotonUsuario();
+            hideLoginScreen();
         }
     });
 });
