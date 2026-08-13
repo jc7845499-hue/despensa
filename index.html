@@ -18,6 +18,7 @@
                 <h2 style="margin: 0; border: none; padding: 0;">Productos a Surtir</h2>
                 <div>
                     <button id="btn-usuario" class="small outline" onclick="doLogout()" style="display: none; margin-right: 8px;">👤</button>
+                    <button id="btn-admin" class="small outline" onclick="togglePanelAdmin()" style="display: none; margin-right: 8px;">⚙️ Admin</button>
                     <button id="new-pantry-btn" class="small outline" onclick="nuevaDespensa()" style="display: none;">Nueva Despensa</button>
                 </div>
             </div>
@@ -118,6 +119,24 @@
             <h3 id="resumen-title">Resumen de Despensa</h3>
             <div id="resumen-body" style="text-align: left; margin-top: 10px;"></div>
             <button class="green inline small" onclick="closeResumenModal()" style="margin-top: 15px;">Aceptar</button>
+        </div>
+    </div>
+
+    <div class="modal" id="admin-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closePanelAdmin()">&times;</span>
+            <h3 style="margin-bottom: 15px;">Panel de Administración</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Gestiona los usuarios del sistema. Como administrador, puedes crear y eliminar usuarios.</p>
+            <div style="text-align: left; margin-bottom: 15px; padding: 15px; background: #f9f9f9; border-radius: 6px;">
+                <h4 style="margin-bottom: 10px; color: #333;">Crear nuevo usuario</h4>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <input type="text" id="admin-new-username" placeholder="Usuario" style="flex: 1; min-width: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <input type="text" id="admin-new-password" placeholder="Contraseña" style="flex: 1; min-width: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button class="green small" onclick="crearUsuarioDesdeAdmin()" style="margin-bottom: 0;">Crear</button>
+                </div>
+                <p id="admin-create-error" style="color: #c62828; font-size: 12px; margin-top: 8px; display: none;"></p>
+            </div>
+            <div id="admin-users-container" style="text-align: left;"></div>
         </div>
     </div>
 

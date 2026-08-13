@@ -100,6 +100,10 @@ async function migratePlaintextUsers() {
             u.salt = salt;
             u.hash = hash;
             delete u.password;
+            u.rol = u.rol || 'usuario';
+            changed = true;
+        } else if (!u.rol) {
+            u.rol = 'usuario';
             changed = true;
         }
     }
@@ -192,7 +196,7 @@ async function doRegister() {
     try {
         const salt = await generateSalt();
         const hash = await hashPassword(password, salt);
-        usuarios.push({ username, salt, hash });
+        usuarios.push({ username, salt, hash, rol: 'usuario' });
         saveUsuarios(usuarios);
 
         setUsuarioActual(username);
@@ -288,6 +292,203 @@ function actualizarDatalists() {
     if (productDatalist) {
         productDatalist.innerHTML = nombres.map(n => `<option value="${n}">`).join('');
     }
+}
+
+function actualizarBotonUsuario() {
+    const btnUsuario = document.getElementById('btn-usuario');
+    const btnNuevaDespensa = document.getElementById('new-pantry-btn');
+    const btnAdmin = document.getElementById('btn-admin');
+    if (btnUsuario && btnNuevaDespensa) {
+        if (currentUser) {
+            btnUsuario.style.display = 'inline-block';
+            btnUsuario.textContent = currentUser;
+            btnNuevaDespensa.style.display = finalizado ? 'inline-block' : 'none';
+        } else {
+            btnUsuario.style.display = 'none';
+            btnNuevaDespensa.style.display = 'none';
+        }
+    }
+    if (btnAdmin) {
+        btnAdmin.style.display = (currentUser && esAdmin()) ? 'inline-block' : 'none';
+    }
+}
+
+function esAdmin() {
+    if (!currentUser) return false;
+    const usuarios = getUsuarios();
+    const usuario = usuarios.find(u => u.username === currentUser);
+    return usuario && usuario.rol === 'admin';
+}
+
+async function crearUsuarioAdminSiNoExiste() {
+    const usuarios = getUsuarios();
+    const existe = usuarios.some(u => u.username === 'admin');
+    if (!existe) {
+        const salt = await generateSalt();
+        const hash = await hashPassword('admin123', salt);
+        usuarios.push({ username: 'admin', salt, hash, rol: 'admin' });
+        saveUsuarios(usuarios);
+    } else {
+        let changed = false;
+        usuarios.forEach(u => {
+            if (u.username === 'admin' && u.rol !== 'admin') {
+                u.rol = 'admin';
+                changed = true;
+            }
+        });
+        if (changed) saveUsuarios(usuarios);
+    }
+}
+
+function getUsuariosParaAdmin() {
+    const usuarios = getUsuarios();
+    return usuarios.map(u => ({
+        username: u.username,
+        rol: u.rol || 'usuario'
+    }));
+}
+
+function eliminarUsuarioPorAdmin(username) {
+    if (!esAdmin()) {
+        showMessage('No tienes permisos de administrador', 'error');
+        return;
+    }
+    if (username === currentUser) {
+        showMessage('No puedes eliminarte a ti mismo', 'error');
+        return;
+    }
+    let usuarios = getUsuarios();
+    usuarios = usuarios.filter(u => u.username !== username);
+    saveUsuarios(usuarios);
+    const usuarioActual = getUsuarioActual();
+    if (usuarioActual === username) {
+        doLogout();
+    }
+    actualizarBotonUsuario();
+    renderizarPanelAdmin();
+    showMessage(`Usuario "${username}" eliminado`, 'success');
+}
+
+async function crearUsuarioDesdeAdmin() {
+    if (!esAdmin()) {
+        showMessage('No tienes permisos de administrador', 'error');
+        return;
+    }
+    const usernameInput = document.getElementById('admin-new-username');
+    const passwordInput = document.getElementById('admin-new-password');
+    const errorEl = document.getElementById('admin-create-error');
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!username || !password) {
+        errorEl.textContent = 'Ingrese usuario y contraseña';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (password.length < 4) {
+        errorEl.textContent = 'La contraseña debe tener al menos 4 caracteres';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const usuarios = getUsuarios();
+    if (usuarios.some(u => u.username === username)) {
+        errorEl.textContent = 'El usuario ya existe';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        const salt = await generateSalt();
+        const hash = await hashPassword(password, salt);
+        usuarios.push({ username, salt, hash, rol: 'usuario' });
+        saveUsuarios(usuarios);
+        usernameInput.value = '';
+        passwordInput.value = '';
+        errorEl.style.display = 'none';
+        renderizarPanelAdmin();
+        showMessage(`Usuario "${username}" creado`, 'success');
+    } catch (error) {
+        console.error('Error creando usuario:', error);
+        errorEl.textContent = 'Error al crear el usuario';
+        errorEl.style.display = 'block';
+    }
+}
+
+function renderizarPanelAdmin() {
+    const container = document.getElementById('admin-users-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const errorEl = document.getElementById('admin-create-error');
+    if (errorEl) {
+        errorEl.style.display = 'none';
+        errorEl.textContent = '';
+    }
+    const usuarios = getUsuariosParaAdmin();
+    if (usuarios.length === 0) {
+        container.innerHTML = '<p style="color: #999; text-align: center;">No hay usuarios registrados</p>';
+        return;
+    }
+    const table = document.createElement('table');
+    table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 10px;';
+    const headerRow = document.createElement('tr');
+    headerRow.style.cssText = 'border-bottom: 2px solid #1a73e8;';
+    ['Usuario', 'Rol', 'Acción'].forEach(text => {
+        const th = document.createElement('th');
+        th.style.cssText = 'padding: 8px; text-align: center; border-right: 1px solid #ddd;';
+        th.textContent = text;
+        headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+    usuarios.forEach(u => {
+        const row = document.createElement('tr');
+        row.style.cssText = 'border-bottom: 1px solid #eee;';
+        const esAdminUser = u.rol === 'admin';
+        const usernameCell = document.createElement('td');
+        usernameCell.style.cssText = 'padding: 8px; text-align: center; border-right: 1px solid #ddd;';
+        usernameCell.textContent = u.username + (esAdminUser ? ' (tú)' : '');
+        row.appendChild(usernameCell);
+        const rolCell = document.createElement('td');
+        rolCell.style.cssText = 'padding: 8px; text-align: center; border-right: 1px solid #ddd;';
+        rolCell.textContent = esAdminUser ? 'Administrador' : 'Usuario';
+        rolCell.style.color = esAdminUser ? '#1a73e8' : '#555';
+        rolCell.style.fontWeight = esAdminUser ? 'bold' : 'normal';
+        row.appendChild(rolCell);
+        const actionCell = document.createElement('td');
+        actionCell.style.cssText = 'padding: 8px; text-align: center;';
+        if (!esAdminUser) {
+            const btnEliminar = document.createElement('button');
+            btnEliminar.className = 'red small';
+            btnEliminar.textContent = 'Eliminar';
+            btnEliminar.style.cssText = 'padding: 6px 12px; font-size: 12px;';
+            btnEliminar.onclick = () => {
+                pendingConfirmCallback = function() {
+                    eliminarUsuarioPorAdmin(u.username);
+                };
+                showConfirmModal('¿Está seguro?', `¿Desea eliminar al usuario "${u.username}"?`);
+            };
+            actionCell.appendChild(btnEliminar);
+        } else {
+            actionCell.textContent = '-';
+            actionCell.style.color = '#999';
+        }
+        row.appendChild(actionCell);
+        table.appendChild(row);
+    });
+    container.appendChild(table);
+}
+
+function togglePanelAdmin() {
+    const modal = document.getElementById('admin-modal');
+    modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+    if (modal.style.display === 'flex') {
+        renderizarPanelAdmin();
+    }
+}
+
+function closePanelAdmin() {
+    document.getElementById('admin-modal').style.display = 'none';
 }
 
 function getFinalizado() {
@@ -719,6 +920,20 @@ function closeResumenModal() {
     document.getElementById('resumen-modal').style.display = 'none';
 }
 
+function showLoginScreen() {
+    const loginScreen = document.getElementById('login-screen');
+    const app = document.getElementById('app');
+    if (loginScreen) loginScreen.style.display = 'flex';
+    if (app) app.style.display = 'none';
+}
+
+function hideLoginScreen() {
+    const loginScreen = document.getElementById('login-screen');
+    const app = document.getElementById('app');
+    if (loginScreen) loginScreen.style.display = 'none';
+    if (app) app.style.display = 'block';
+}
+
 function finalizarRegistroCompleto() {
     finalizado = true;
     setFinalizado(true);
@@ -1043,12 +1258,14 @@ function togglePassword() {
 initDevToolsProtection();
 
 migratePlaintextUsers().then(() => {
-    const loggedIn = initUserContext();
-    if (!loggedIn) {
-        showLoginScreen();
-    } else {
-        actualizarDatalists();
-        renderProductos();
-        actualizarBotonUsuario();
-    }
+    crearUsuarioAdminSiNoExiste().then(() => {
+        const loggedIn = initUserContext();
+        if (!loggedIn) {
+            showLoginScreen();
+        } else {
+            actualizarDatalists();
+            renderProductos();
+            actualizarBotonUsuario();
+        }
+    });
 });

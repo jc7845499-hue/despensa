@@ -65,3 +65,8 @@ button.inline { display: inline-block; width: auto; margin-right: 8px; }
 .password-wrapper input { width: 100%; padding-right: 45px; }
 .password-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #999; cursor: pointer; font-size: 16px; padding: 4px; width: auto; min-width: auto; }
 .password-toggle:hover { color: #333; background: none; }
+
+#admin-modal table th { background: #f5f5f5; font-weight: 600; }
+#admin-modal table td { padding: 10px 8px; }
+#admin-modal button { margin-bottom: 0; }
+#admin-modal input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
