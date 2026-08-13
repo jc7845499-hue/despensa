@@ -59,6 +59,7 @@ function initUserContext() {
     const username = getUsuarioActual();
     if (username) {
         currentUser = username;
+        finalizado = getFinalizado();
         return true;
     }
     return false;
@@ -150,6 +151,7 @@ async function doLogin() {
 
         setUsuarioActual(username);
         currentUser = username;
+        finalizado = getFinalizado();
         hideLoginScreen();
         actualizarDatalists();
         renderProductos();
@@ -201,6 +203,7 @@ async function doRegister() {
 
         setUsuarioActual(username);
         currentUser = username;
+        finalizado = getFinalizado();
         hideLoginScreen();
         actualizarDatalists();
         renderProductos();
@@ -211,6 +214,13 @@ async function doRegister() {
         errorEl.textContent = 'Error al crear la cuenta: ' + errorMsg;
         errorEl.style.display = 'block';
     }
+}
+
+function showLogoutConfirm() {
+    pendingConfirmCallback = function() {
+        doLogout();
+    };
+    showConfirmModal('¿Cerrar Sesión?', '¿Está seguro que desea cerrar sesión?');
 }
 
 function doLogout() {
@@ -237,6 +247,7 @@ function showMessage(msg, type) {
 }
 
 function getProductos() {
+    if (!currentUser) return [];
     const data = localStorage.getItem(getUserKey(BASE_STORAGE_KEY));
     return data ? JSON.parse(data) : [];
 }
@@ -246,6 +257,7 @@ function saveProductos(productos) {
 }
 
 function getHistorialPrecios() {
+    if (!currentUser) return {};
     const data = localStorage.getItem(getUserKey(BASE_PRICE_HISTORY_KEY));
     return data ? JSON.parse(data) : {};
 }
@@ -255,6 +267,7 @@ function saveHistorialPrecios(historial) {
 }
 
 function getSavedLists() {
+    if (!currentUser) return [];
     const data = localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY));
     return data ? JSON.parse(data) : [];
 }
@@ -265,6 +278,12 @@ function saveSavedLists(listas) {
 
 function getTodosLosNombresProductos() {
     const nombres = new Set();
+    const productos = getProductos();
+    productos.forEach(p => {
+        if (p.nombre && p.nombre.trim()) {
+            nombres.add(p.nombre.trim());
+        }
+    });
     const listas = getSavedLists();
     listas.forEach(lista => {
         lista.productos.forEach(p => {
@@ -301,8 +320,12 @@ function actualizarBotonUsuario() {
     if (btnUsuario && btnNuevaDespensa) {
         if (currentUser) {
             btnUsuario.style.display = 'inline-block';
-            btnUsuario.textContent = currentUser;
-            btnNuevaDespensa.style.display = finalizado ? 'inline-block' : 'none';
+            btnUsuario.textContent = 'Cerrar Sesión';
+            if (esAdmin()) {
+                btnNuevaDespensa.style.display = 'none';
+            } else {
+                btnNuevaDespensa.style.display = finalizado ? 'inline-block' : 'none';
+            }
         } else {
             btnUsuario.style.display = 'none';
             btnNuevaDespensa.style.display = 'none';
@@ -311,6 +334,15 @@ function actualizarBotonUsuario() {
     if (btnAdmin) {
         btnAdmin.style.display = (currentUser && esAdmin()) ? 'inline-block' : 'none';
     }
+    if (esAdmin()) {
+        deshabilitarControlesAdmin();
+    } else if (finalizado) {
+        deshabilitarControles();
+        mostrarBotonNuevaDespensa();
+    } else {
+        habilitarControles();
+        ocultarBotonNuevaDespensa();
+    }
 }
 
 function esAdmin() {
@@ -318,6 +350,28 @@ function esAdmin() {
     const usuarios = getUsuarios();
     const usuario = usuarios.find(u => u.username === currentUser);
     return usuario && usuario.rol === 'admin';
+}
+
+function deshabilitarControlesAdmin() {
+    const ids = [
+        'shopping-name', 'shopping-qty', 'shopping-approx-price',
+        'product-name', 'product-price', 'product-qty',
+        'add-btn', 'btn-finalizar-registro', 'btn-ver-anteriores'
+    ];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = true;
+    });
+    const shoppingBtns = document.querySelectorAll('#shopping-inputs button');
+    shoppingBtns.forEach(btn => btn.disabled = true);
+    const productList = document.getElementById('product-list');
+    if (productList) {
+        productList.innerHTML = '<p style="color: #999; text-align: center;">Los administradores no pueden modificar despensas</p>';
+    }
+    const totalPrice = document.getElementById('total-price');
+    if (totalPrice) totalPrice.textContent = '$0.00';
+    const totalApprox = document.getElementById('total-approx');
+    if (totalApprox) totalApprox.style.display = 'none';
 }
 
 async function crearUsuarioAdminSiNoExiste() {
@@ -492,10 +546,12 @@ function closePanelAdmin() {
 }
 
 function getFinalizado() {
+    if (!currentUser) return false;
     return localStorage.getItem(getUserKey(BASE_FINALIZADO_KEY)) === 'true';
 }
 
 function setFinalizado(val) {
+    if (!currentUser) return;
     localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), val ? 'true' : 'false');
 }
 
@@ -1235,13 +1291,6 @@ document.getElementById('product-price').addEventListener('keypress', (e) => {
         agregarProducto();
     }
 });
-
-if (getFinalizado()) {
-    finalizado = true;
-    deshabilitarControles();
-    const newPantryBtn = document.getElementById('new-pantry-btn');
-    if (newPantryBtn) newPantryBtn.style.display = 'inline-block';
-}
 
 function togglePassword() {
     const passwordInput = document.getElementById('login-password');
