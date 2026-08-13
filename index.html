@@ -154,6 +154,12 @@
     <datalist id="shopping-names"></datalist>
     <datalist id="product-names"></datalist>
 
-    <script src="script.js"></script>
+    <script type="module" defer>
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+        window.firebaseSdk = { initializeApp, getFirestore, doc, getDoc, setDoc, serverTimestamp };
+    </script>
+    <script src="firebase-config.js" defer></script>
+    <script src="script.js" defer></script>
 </body>
 </html>

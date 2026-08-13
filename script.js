@@ -19,8 +19,31 @@ function getUsuarios() {
     return data ? JSON.parse(data) : [];
 }
 
-function saveUsuarios(usuarios) {
+async function syncUsuariosFromFirebase() {
+    if (!firebaseEnabled()) return;
+    try {
+        const db = window.firebaseDb;
+        const docRef = window.firebaseSdk.doc(db, 'despensa', '__usuarios__');
+        const docSnap = await window.firebaseSdk.getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().usuarios) {
+            localStorage.setItem(USERS_KEY, JSON.stringify(docSnap.data().usuarios));
+        }
+    } catch (e) {
+        console.warn('Error sincronizando usuarios desde Firebase:', e);
+    }
+}
+
+async function saveUsuarios(usuarios) {
     localStorage.setItem(USERS_KEY, JSON.stringify(usuarios));
+    if (firebaseEnabled()) {
+        try {
+            const db = window.firebaseDb;
+            const docRef = window.firebaseSdk.doc(db, 'despensa', '__usuarios__');
+            await window.firebaseSdk.setDoc(docRef, { usuarios }, { merge: true });
+        } catch (e) {
+            console.warn('Error sincronizando usuarios a Firebase:', e);
+        }
+    }
 }
 
 function getUsuarioActual() {
@@ -109,7 +132,7 @@ async function migratePlaintextUsers() {
         }
     }
     if (changed) {
-        saveUsuarios(usuarios);
+        await saveUsuarios(usuarios);
     }
 }
 
@@ -152,6 +175,7 @@ async function doLogin() {
         setUsuarioActual(username);
         currentUser = username;
         finalizado = getFinalizado();
+        await syncFromFirebase();
         hideLoginScreen();
         if (!esAdmin()) {
             actualizarDatalists();
@@ -206,6 +230,7 @@ async function doRegister() {
         setUsuarioActual(username);
         currentUser = username;
         finalizado = getFinalizado();
+        await syncFromFirebase();
         hideLoginScreen();
         if (!esAdmin()) {
             actualizarDatalists();
@@ -227,7 +252,8 @@ function showLogoutConfirm() {
     showConfirmModal('¿Cerrar Sesión?', '¿Está seguro que desea cerrar sesión?');
 }
 
-function doLogout() {
+async function doLogout() {
+    await syncToFirebase();
     setUsuarioActual(null);
     currentUser = null;
     finalizado = false;
@@ -252,34 +278,159 @@ function showMessage(msg, type) {
     setTimeout(() => msgEl.style.display = 'none', 5000);
 }
 
+function firebaseEnabled() {
+    return typeof window !== 'undefined' && window.firebaseDb && currentUser;
+}
+
+async function firebaseGetUserDoc(field) {
+    if (!firebaseEnabled()) return null;
+    try {
+        const db = window.firebaseDb;
+        const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
+        const docSnap = await window.firebaseSdk.getDoc(docRef);
+        if (docSnap.exists()) {
+            return docSnap.data()[field];
+        }
+    } catch (e) {
+        console.warn('Error leyendo Firebase:', e);
+    }
+    return null;
+}
+
+async function firebaseSetUserDoc(field, value) {
+    if (!firebaseEnabled()) return;
+    try {
+        const db = window.firebaseDb;
+        const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
+        await window.firebaseSdk.setDoc(docRef, { [field]: value }, { merge: true });
+    } catch (e) {
+        console.warn('Error escribiendo Firebase:', e);
+    }
+}
+
+async function syncFromFirebase() {
+    if (!firebaseEnabled()) return;
+    try {
+        const db = window.firebaseDb;
+        const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
+        const docSnap = await window.firebaseSdk.getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.productos !== undefined) {
+                localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(data.productos));
+            }
+            if (data.historialPrecios !== undefined) {
+                localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(data.historialPrecios));
+            }
+            if (data.listasGuardadas !== undefined) {
+                localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(data.listasGuardadas));
+            }
+            if (data.finalizado !== undefined) {
+                localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), data.finalizado ? 'true' : 'false');
+            }
+        }
+    } catch (e) {
+        console.warn('Error sincronizando desde Firebase:', e);
+    }
+}
+
+async function syncToFirebase() {
+    if (!firebaseEnabled()) return;
+    try {
+        const productos = getProductos();
+        const historial = getHistorialPrecios();
+        const listas = getSavedLists();
+        const finalizadoVal = getFinalizado();
+        const db = window.firebaseDb;
+        const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
+        await window.firebaseSdk.setDoc(docRef, {
+            productos,
+            historialPrecios: historial,
+            listasGuardadas: listas,
+            finalizado: finalizadoVal,
+            updatedAt: window.firebaseSdk.serverTimestamp()
+        }, { merge: true });
+    } catch (e) {
+        console.warn('Error sincronizando a Firebase:', e);
+    }
+}
+
 function getProductos() {
     if (!currentUser) return [];
-    const data = localStorage.getItem(getUserKey(BASE_STORAGE_KEY));
-    return data ? JSON.parse(data) : [];
+    let data = localStorage.getItem(getUserKey(BASE_STORAGE_KEY));
+    let productos = data ? JSON.parse(data) : [];
+    if (productos.length === 0 && firebaseEnabled()) {
+        firebaseGetUserDoc('productos').then(remote => {
+            if (Array.isArray(remote)) {
+                localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(remote));
+                renderProductos();
+                actualizarDatalists();
+            }
+        });
+    }
+    return productos;
 }
 
 function saveProductos(productos) {
     localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(productos));
+    syncToFirebase();
 }
 
 function getHistorialPrecios() {
     if (!currentUser) return {};
-    const data = localStorage.getItem(getUserKey(BASE_PRICE_HISTORY_KEY));
-    return data ? JSON.parse(data) : {};
+    let data = localStorage.getItem(getUserKey(BASE_PRICE_HISTORY_KEY));
+    let historial = data ? JSON.parse(data) : {};
+    if (Object.keys(historial).length === 0 && firebaseEnabled()) {
+        firebaseGetUserDoc('historialPrecios').then(remote => {
+            if (remote && typeof remote === 'object') {
+                localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(remote));
+            }
+        });
+    }
+    return historial;
 }
 
 function saveHistorialPrecios(historial) {
     localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(historial));
+    syncToFirebase();
 }
 
 function getSavedLists() {
     if (!currentUser) return [];
-    const data = localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY));
-    return data ? JSON.parse(data) : [];
+    let data = localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY));
+    let listas = data ? JSON.parse(data) : [];
+    if (listas.length === 0 && firebaseEnabled()) {
+        firebaseGetUserDoc('listasGuardadas').then(remote => {
+            if (Array.isArray(remote)) {
+                localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(remote));
+            }
+        });
+    }
+    return listas;
 }
 
 function saveSavedLists(listas) {
     localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(listas));
+    syncToFirebase();
+}
+
+function getFinalizado() {
+    if (!currentUser) return false;
+    let val = localStorage.getItem(getUserKey(BASE_FINALIZADO_KEY));
+    if (val === null && firebaseEnabled()) {
+        firebaseGetUserDoc('finalizado').then(remote => {
+            if (remote !== null && remote !== undefined) {
+                localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), remote ? 'true' : 'false');
+            }
+        });
+    }
+    return val === 'true';
+}
+
+function setFinalizado(val) {
+    if (!currentUser) return;
+    localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), val ? 'true' : 'false');
+    syncToFirebase();
 }
 
 function getTodosLosNombresProductos() {
@@ -551,16 +702,6 @@ function getSavedListsForUser(username) {
     return data ? JSON.parse(data) : [];
 }
 
-function getFinalizado() {
-    if (!currentUser) return false;
-    return localStorage.getItem(getUserKey(BASE_FINALIZADO_KEY)) === 'true';
-}
-
-function setFinalizado(val) {
-    if (!currentUser) return;
-    localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), val ? 'true' : 'false');
-}
-
 function limpiarInputs() {
     const ids = [
         'product-name', 'product-price', 'product-qty',
@@ -602,7 +743,7 @@ function habilitarControles() {
     if (shoppingBtn) shoppingBtn.disabled = false;
 }
 
-function nuevaDespensa() {
+async function nuevaDespensa() {
     finalizado = false;
     setFinalizado(false);
     localStorage.removeItem(getUserKey(BASE_STORAGE_KEY));
@@ -610,6 +751,7 @@ function nuevaDespensa() {
     ocultarBotonNuevaDespensa();
     limpiarInputs();
     renderProductos();
+    await syncToFirebase();
 }
 
 function mostrarBotonNuevaDespensa() {
@@ -958,10 +1100,10 @@ function closeConfirmModal() {
     pendingConfirmCallback = null;
 }
 
-function confirmarSi() {
+async function confirmarSi() {
     const cb = pendingConfirmCallback;
     closeConfirmModal();
-    if (cb) cb();
+    if (cb) await cb();
 }
 
 function confirmarNo() {
@@ -1045,6 +1187,7 @@ function finalizarRegistroCompleto() {
 
     localStorage.removeItem(getUserKey(BASE_STORAGE_KEY));
     limpiarInputs();
+    syncToFirebase();
 
     let resumen = `<p><strong>¡Despensa finalizada!</strong></p>`;
     resumen += `<p><strong>Total a pagar: $${total.toFixed(2)}</strong></p>`;
@@ -1082,6 +1225,7 @@ function closeSavedLists() {
 
 function limpiarHistorialDespensas() {
     localStorage.removeItem(getUserKey(BASE_SAVED_LISTS_KEY));
+    saveSavedLists([]);
     renderSavedLists();
     showMessage('Historial de despensas eliminado', 'success');
 }
@@ -1323,12 +1467,16 @@ function togglePassword() {
 initDevToolsProtection();
 
 migratePlaintextUsers().then(() => {
-    crearUsuarioAdminSiNoExiste().then(() => {
-        const loggedIn = initUserContext();
-        if (!loggedIn) {
-            showLoginScreen();
-        } else {
-            hideLoginScreen();
-        }
+    syncUsuariosFromFirebase().then(() => {
+        crearUsuarioAdminSiNoExiste().then(() => {
+            syncUsuariosFromFirebase().then(() => {
+                const loggedIn = initUserContext();
+                if (!loggedIn) {
+                    showLoginScreen();
+                } else {
+                    hideLoginScreen();
+                }
+            });
+        });
     });
 });
