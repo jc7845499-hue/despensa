@@ -572,7 +572,7 @@ function deshabilitarControles() {
     const ids = [
         'shopping-name', 'shopping-qty', 'shopping-approx-price',
         'product-name', 'product-price', 'product-qty',
-        'add-btn', 'btn-finalizar-registro'
+        'add-btn', 'btn-finalizar-registro', 'btn-ver-anteriores'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -586,7 +586,7 @@ function habilitarControles() {
     const ids = [
         'shopping-name', 'shopping-qty', 'shopping-approx-price',
         'product-name', 'product-price', 'product-qty',
-        'add-btn', 'btn-finalizar-registro'
+        'add-btn', 'btn-finalizar-registro', 'btn-ver-anteriores'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
