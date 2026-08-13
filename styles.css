@@ -74,3 +74,22 @@ button.inline { display: inline-block; width: auto; margin-right: 8px; }
 #admin-view table tr { border-bottom: 1px solid #eee; }
 #admin-view button { margin-bottom: 0; }
 #admin-view input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+
+@media (max-width: 768px) {
+    body { padding: 10px; }
+    .container { max-width: 100%; }
+    h1 { font-size: 22px; margin-bottom: 15px; }
+    .form-section { padding: 15px; margin-bottom: 15px; }
+    .form-section h2 { font-size: 16px; }
+    button { padding: 10px 16px; font-size: 13px; }
+    .total-section .total-amount { font-size: 24px; }
+    .product-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .product-item .remove-btn { align-self: flex-end; }
+    .modal-content { width: 95%; padding: 20px; max-height: 85vh; }
+    .shopping-item { flex-wrap: wrap; }
+    .shopping-item input { flex: 1 1 100%; min-width: 0; }
+    .shopping-item input[type="number"] { flex: 1 1 calc(50% - 8px); }
+    .shopping-item button { flex: 1 1 100%; }
+    #admin-view table { font-size: 13px; }
+    #admin-view table th, #admin-view table td { padding: 8px 4px; }
+}

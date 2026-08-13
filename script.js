@@ -357,7 +357,7 @@ function deshabilitarControlesAdmin() {
     const ids = [
         'shopping-name', 'shopping-qty', 'shopping-approx-price',
         'product-name', 'product-price', 'product-qty',
-        'add-btn', 'btn-finalizar-registro', 'btn-ver-anteriores'
+        'add-btn', 'btn-finalizar-registro'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -373,6 +373,8 @@ function deshabilitarControlesAdmin() {
     if (totalPrice) totalPrice.textContent = '$0.00';
     const totalApprox = document.getElementById('total-approx');
     if (totalApprox) totalApprox.style.display = 'none';
+    const btnVerAnteriores = document.getElementById('btn-ver-anteriores');
+    if (btnVerAnteriores) btnVerAnteriores.disabled = false;
 }
 
 async function crearUsuarioAdminSiNoExiste() {
@@ -576,7 +578,7 @@ function deshabilitarControles() {
     const ids = [
         'shopping-name', 'shopping-qty', 'shopping-approx-price',
         'product-name', 'product-price', 'product-qty',
-        'add-btn', 'btn-finalizar-registro', 'btn-ver-anteriores'
+        'add-btn', 'btn-finalizar-registro'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -590,7 +592,7 @@ function habilitarControles() {
     const ids = [
         'shopping-name', 'shopping-qty', 'shopping-approx-price',
         'product-name', 'product-price', 'product-qty',
-        'add-btn', 'btn-finalizar-registro', 'btn-ver-anteriores'
+        'add-btn', 'btn-finalizar-registro'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
