@@ -29,7 +29,7 @@ async function syncUsuariosFromFirebase() {
     try {
         console.log('Sincronizando usuarios desde Firebase');
         const db = window.firebaseDb;
-        const docRef = window.firebaseSdk.doc(db, 'despensa', '__usuarios__');
+        const docRef = window.firebaseSdk.doc(db, 'despensa', 'usuarios');
         const docSnap = await window.firebaseSdk.getDoc(docRef);
         if (docSnap.exists() && docSnap.data().usuarios) {
             localStorage.setItem(USERS_KEY, JSON.stringify(docSnap.data().usuarios));
@@ -47,7 +47,7 @@ async function saveUsuarios(usuarios) {
     if (window.firebaseDb && window.firebaseSdk) {
         try {
             const db = window.firebaseDb;
-            const docRef = window.firebaseSdk.doc(db, 'despensa', '__usuarios__');
+            const docRef = window.firebaseSdk.doc(db, 'despensa', 'usuarios');
             await window.firebaseSdk.setDoc(docRef, { usuarios }, { merge: true });
             console.log('Usuarios sincronizados a Firebase correctamente');
         } catch (e) {
