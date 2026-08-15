@@ -277,8 +277,6 @@ async function doRegister() {
 
 function showLogoutConfirm() {
     console.log('Mostrando confirmación de logout');
-    const loginScreen = document.getElementById('login-screen');
-    if (loginScreen) loginScreen.style.display = 'none';
     pendingConfirmCallback = function() {
         console.log('Ejecutando callback de logout');
         doLogout();
@@ -288,35 +286,82 @@ function showLogoutConfirm() {
 
 async function doLogout() {
     console.log('Iniciando logout');
-    try {
-        await syncToFirebase();
-    } catch (e) {
-        console.warn('Error sincronizando a Firebase en logout:', e);
-    }
     
-    setUsuarioActual(null);
-    currentUser = null;
-    finalizado = false;
+    const username = currentUser;
     
     try {
-        habilitarControles();
-        ocultarBotonNuevaDespensa();
-        limpiarInputs();
-        renderProductos();
-        actualizarBotonUsuario();
+        if (username && firebaseEnabled()) {
+            console.log('Sincronizando datos a Firebase antes de logout para:', username);
+            try {
+                await syncToFirebase();
+                console.log('Sincronización completada');
+            } catch (e) {
+                console.warn('Error sincronizando a Firebase en logout:', e);
+            }
+        } else {
+            console.log('Firebase no habilitado o no hay usuario, saltando sincronización');
+        }
+        
+        setUsuarioActual(null);
+        currentUser = null;
+        finalizado = false;
+        
+        try {
+            habilitarControles();
+            ocultarBotonNuevaDespensa();
+            limpiarInputs();
+            renderProductos();
+            actualizarBotonUsuario();
+        } catch (e) {
+            console.warn('Error limpiando interfaz en logout:', e);
+        }
+        
+        const adminView = document.getElementById('admin-view');
+        if (adminView) adminView.style.display = 'none';
+        
+        const confirmModal = document.getElementById('confirm-modal');
+        if (confirmModal) confirmModal.style.display = 'none';
+        
+        const app = document.getElementById('app');
+        if (app) app.style.display = 'none';
+        
+        const savedListsModal = document.getElementById('saved-lists-modal');
+        if (savedListsModal) savedListsModal.style.display = 'none';
+        
+        const resumenModal = document.getElementById('resumen-modal');
+        if (resumenModal) resumenModal.style.display = 'none';
+        
+        console.log('Mostrando login screen');
+        showLoginScreen();
+        
+        setTimeout(() => {
+            console.log('Verificación post-logout: asegurando que el login esté visible');
+            const loginScreen = document.getElementById('login-screen');
+            const confirmModal = document.getElementById('confirm-modal');
+            const app = document.getElementById('app');
+            const adminView = document.getElementById('admin-view');
+            
+            if (loginScreen) {
+                loginScreen.style.display = 'flex';
+                loginScreen.style.visibility = 'visible';
+                loginScreen.style.opacity = '1';
+            }
+            if (confirmModal) confirmModal.style.display = 'none';
+            if (app) app.style.display = 'none';
+            if (adminView) adminView.style.display = 'none';
+        }, 100);
+        
+        console.log('Logout completado');
     } catch (e) {
-        console.warn('Error limpiando interfaz en logout:', e);
+        console.error('Error en logout, forzando login screen:', e);
+        const adminView = document.getElementById('admin-view');
+        if (adminView) adminView.style.display = 'none';
+        const confirmModal = document.getElementById('confirm-modal');
+        if (confirmModal) confirmModal.style.display = 'none';
+        const app = document.getElementById('app');
+        if (app) app.style.display = 'none';
+        showLoginScreen();
     }
-    
-    const adminView = document.getElementById('admin-view');
-    if (adminView) adminView.style.display = 'none';
-    
-    const confirmModal = document.getElementById('confirm-modal');
-    if (confirmModal) confirmModal.style.display = 'none';
-    
-    console.log('Mostrando login screen');
-    showLoginScreen();
-    console.log('Logout completado');
 }
 
 function showMessage(msg, type) {
@@ -361,25 +406,36 @@ async function firebaseSetUserDoc(field, value) {
 }
 
 async function syncFromFirebase() {
-    if (!firebaseEnabled()) return;
+    if (!firebaseEnabled()) {
+        console.log('syncFromFirebase: Firebase no habilitado');
+        return;
+    }
     try {
+        console.log('Sincronizando datos desde Firebase para:', currentUser);
         const db = window.firebaseDb;
         const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
         const docSnap = await window.firebaseSdk.getDoc(docRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
+            console.log('Datos recibidos desde Firebase:', data);
             if (data.productos !== undefined) {
                 localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(data.productos));
+                console.log('Productos actualizados desde Firebase');
             }
             if (data.historialPrecios !== undefined) {
                 localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(data.historialPrecios));
+                console.log('Historial de precios actualizado desde Firebase');
             }
             if (data.listasGuardadas !== undefined) {
                 localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(data.listasGuardadas));
+                console.log('Listas guardadas actualizadas desde Firebase');
             }
             if (data.finalizado !== undefined) {
                 localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), data.finalizado ? 'true' : 'false');
+                console.log('Estado finalizado actualizado desde Firebase:', data.finalizado);
             }
+        } else {
+            console.log('No hay datos en Firebase para este usuario');
         }
     } catch (e) {
         console.warn('Error sincronizando desde Firebase:', e);
@@ -387,8 +443,12 @@ async function syncFromFirebase() {
 }
 
 async function syncToFirebase() {
-    if (!firebaseEnabled()) return;
+    if (!firebaseEnabled()) {
+        console.log('syncToFirebase: Firebase no habilitado');
+        return;
+    }
     try {
+        console.log('Sincronizando datos a Firebase para:', currentUser);
         const productos = getProductos();
         const historial = getHistorialPrecios();
         const listas = getSavedLists();
@@ -402,6 +462,7 @@ async function syncToFirebase() {
             finalizado: finalizadoVal,
             updatedAt: window.firebaseSdk.serverTimestamp()
         }, { merge: true });
+        console.log('Datos sincronizados a Firebase correctamente');
     } catch (e) {
         console.warn('Error sincronizando a Firebase:', e);
     }
@@ -1168,11 +1229,26 @@ function showConfirmModal(title, message) {
     const temp = document.createElement('div');
     temp.innerHTML = message;
     messageEl.textContent = temp.textContent || '';
-    document.getElementById('confirm-modal').style.display = 'flex';
+    const modal = document.getElementById('confirm-modal');
+    modal.style.display = 'flex';
+    
+    const clickHandler = (e) => {
+        if (e.target === modal) {
+            console.log('Clic fuera del modal de confirmación, cerrando');
+            confirmarNo();
+        }
+    };
+    modal.addEventListener('click', clickHandler);
+    modal._outsideClickHandler = clickHandler;
 }
 
 function closeConfirmModal() {
-    document.getElementById('confirm-modal').style.display = 'none';
+    const modal = document.getElementById('confirm-modal');
+    if (modal && modal._outsideClickHandler) {
+        modal.removeEventListener('click', modal._outsideClickHandler);
+        modal._outsideClickHandler = null;
+    }
+    if (modal) modal.style.display = 'none';
     pendingConfirmCallback = null;
 }
 
@@ -1214,7 +1290,11 @@ function showLoginScreen() {
     const savedListsModal = document.getElementById('saved-lists-modal');
     const resumenModal = document.getElementById('resumen-modal');
     
-    if (loginScreen) loginScreen.style.display = 'flex';
+    if (loginScreen) {
+        loginScreen.style.display = 'flex';
+        loginScreen.style.visibility = 'visible';
+        loginScreen.style.opacity = '1';
+    }
     if (app) app.style.display = 'none';
     if (adminView) adminView.style.display = 'none';
     if (confirmModal) confirmModal.style.display = 'none';
@@ -1222,6 +1302,24 @@ function showLoginScreen() {
     if (resumenModal) resumenModal.style.display = 'none';
     
     pendingConfirmCallback = null;
+    
+    const body = document.body;
+    if (body) {
+        body.style.overflow = 'auto';
+    }
+    
+    setTimeout(() => {
+        if (loginScreen) {
+            loginScreen.style.display = 'flex';
+            loginScreen.style.visibility = 'visible';
+            loginScreen.style.opacity = '1';
+        }
+        if (app) app.style.display = 'none';
+        if (adminView) adminView.style.display = 'none';
+        if (confirmModal) confirmModal.style.display = 'none';
+        if (savedListsModal) savedListsModal.style.display = 'none';
+        if (resumenModal) resumenModal.style.display = 'none';
+    }, 50);
 }
 
 function hideLoginScreen() {
@@ -1638,6 +1736,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }).then(() => {
         console.log('Admin creado, sincronizando usuarios nuevamente...');
         return syncUsuariosFromFirebase();
+    }).then(() => {
+        const loggedIn = initUserContext();
+        if (loggedIn && currentUser) {
+            console.log('Usuario ya logueado:', currentUser, '- sincronizando datos desde Firebase...');
+            return syncFromFirebase();
+        }
     }).then(() => {
         console.log('Mostrando login screen');
         showLoginScreen();
