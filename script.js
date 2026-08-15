@@ -25,13 +25,17 @@ function getUsuarios() {
 }
 
 async function syncUsuariosFromFirebase() {
-    if (!firebaseEnabled()) return;
+    if (!window.firebaseDb) return;
     try {
+        console.log('Sincronizando usuarios desde Firebase');
         const db = window.firebaseDb;
         const docRef = window.firebaseSdk.doc(db, 'despensa', '__usuarios__');
         const docSnap = await window.firebaseSdk.getDoc(docRef);
         if (docSnap.exists() && docSnap.data().usuarios) {
             localStorage.setItem(USERS_KEY, JSON.stringify(docSnap.data().usuarios));
+            console.log('Usuarios actualizados desde Firebase');
+        } else {
+            console.log('No hay usuarios en Firebase');
         }
     } catch (e) {
         console.warn('Error sincronizando usuarios desde Firebase:', e);
@@ -40,11 +44,12 @@ async function syncUsuariosFromFirebase() {
 
 async function saveUsuarios(usuarios) {
     localStorage.setItem(USERS_KEY, JSON.stringify(usuarios));
-    if (firebaseEnabled()) {
+    if (window.firebaseDb && window.firebaseSdk) {
         try {
             const db = window.firebaseDb;
             const docRef = window.firebaseSdk.doc(db, 'despensa', '__usuarios__');
             await window.firebaseSdk.setDoc(docRef, { usuarios }, { merge: true });
+            console.log('Usuarios sincronizados a Firebase correctamente');
         } catch (e) {
             console.warn('Error sincronizando usuarios a Firebase:', e);
         }
