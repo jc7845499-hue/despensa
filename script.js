@@ -277,9 +277,14 @@ async function doRegister() {
 
 function showLogoutConfirm() {
     console.log('Mostrando confirmación de logout');
+    console.log('doLogout existe:', typeof doLogout);
     pendingConfirmCallback = function() {
         console.log('Ejecutando callback de logout');
-        doLogout();
+        try {
+            doLogout();
+        } catch (e) {
+            console.error('Error ejecutando doLogout desde callback:', e);
+        }
     };
     showConfirmModal('¿Cerrar Sesión?', '¿Está seguro que desea cerrar sesión?');
 }
@@ -1258,7 +1263,11 @@ async function confirmarSi() {
     closeConfirmModal();
     if (cb) {
         console.log('Ejecutando callback de confirmación');
-        await cb();
+        try {
+            await cb();
+        } catch (e) {
+            console.error('Error en callback de confirmación:', e);
+        }
     } else {
         console.warn('No hay callback de confirmación');
     }
