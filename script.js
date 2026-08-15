@@ -152,11 +152,14 @@ async function migratePlaintextUsers() {
 }
 
 async function doLogin() {
+    console.log('doLogin iniciado');
     const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
     const errorEl = document.getElementById('login-error');
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
+
+    console.log('Intentando login con usuario:', username);
 
     if (!username || !password) {
         errorEl.textContent = 'Ingrese usuario y contraseña';
@@ -171,6 +174,7 @@ async function doLogin() {
     }
 
     const usuarios = getUsuarios();
+    console.log('Usuarios en localStorage:', usuarios.map(u => u.username));
     const usuario = usuarios.find(u => u.username === username);
 
     if (!usuario || !usuario.salt || !usuario.hash) {
@@ -181,6 +185,8 @@ async function doLogin() {
 
     try {
         const hash = await hashPassword(password, usuario.salt);
+        console.log('Hash generado:', hash);
+        console.log('Hash almacenado:', usuario.hash);
         if (hash !== usuario.hash) {
             errorEl.textContent = 'Usuario o contraseña incorrectos';
             errorEl.style.display = 'block';
@@ -195,6 +201,7 @@ async function doLogin() {
         } catch (e) {
             console.warn('Error sincronizando desde Firebase en login:', e);
         }
+        console.log('Ocultando login, mostrando app');
         hideLoginScreen();
         if (!esAdmin()) {
             actualizarDatalists();
@@ -1528,22 +1535,6 @@ function renderSavedLists() {
             modal.appendChild(content);
         }
 
-document.getElementById('add-btn').addEventListener('click', agregarProducto);
-
-document.getElementById('product-name').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('product-price').focus();
-    }
-});
-
-document.getElementById('product-price').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        agregarProducto();
-    }
-});
-
 function togglePassword() {
     const passwordInput = document.getElementById('login-password');
     const toggleBtn = document.getElementById('toggle-password');
@@ -1566,6 +1557,7 @@ const firebaseConfig = {
 };
 
 async function initFirebase() {
+    console.log('Iniciando Firebase...');
     try {
         const appModule = await import('https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js');
         const dbModule = await import('https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js');
@@ -1581,23 +1573,76 @@ async function initFirebase() {
             setDoc: dbModule.setDoc,
             serverTimestamp: dbModule.serverTimestamp
         };
+        console.log('Firebase inicializado correctamente');
     } catch (e) {
         console.warn('Firebase no disponible:', e);
     }
 }
 
-initDevToolsProtection();
+window.addEventListener('DOMContentLoaded', () => {
+    const addBtn = document.getElementById('add-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', agregarProducto);
+    }
 
-initFirebase().then(() => {
-    return migratePlaintextUsers();
-}).then(() => {
-    return syncUsuariosFromFirebase();
-}).then(() => {
-    return crearUsuarioAdminSiNoExiste();
-}).then(() => {
-    return syncUsuariosFromFirebase();
-}).then(() => {
-    showLoginScreen();
-}).catch(() => {
-    showLoginScreen();
+    const productNameInput = document.getElementById('product-name');
+    if (productNameInput) {
+        productNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const productPriceInput = document.getElementById('product-price');
+                if (productPriceInput) productPriceInput.focus();
+            }
+        });
+    }
+
+    const productPriceInput = document.getElementById('product-price');
+    if (productPriceInput) {
+        productPriceInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                agregarProducto();
+            }
+        });
+    }
+
+    const loginSubmitBtn = document.getElementById('login-submit');
+    if (loginSubmitBtn) {
+        loginSubmitBtn.addEventListener('click', (e) => {
+            console.log('Botón de login clickeado');
+            doLogin();
+        });
+    }
+
+    const loginPasswordInput = document.getElementById('login-password');
+    if (loginPasswordInput) {
+        loginPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                console.log('Enter presionado en password, ejecutando login');
+                doLogin();
+            }
+        });
+    }
+
+    initDevToolsProtection();
+
+    initFirebase().then(() => {
+        console.log('Firebase listo, iniciando migración de usuarios...');
+        return migratePlaintextUsers();
+    }).then(() => {
+        console.log('Migración completada, sincronizando usuarios...');
+        return syncUsuariosFromFirebase();
+    }).then(() => {
+        console.log('Sincronización completada, creando admin...');
+        return crearUsuarioAdminSiNoExiste();
+    }).then(() => {
+        console.log('Admin creado, sincronizando usuarios nuevamente...');
+        return syncUsuariosFromFirebase();
+    }).then(() => {
+        console.log('Mostrando login screen');
+        showLoginScreen();
+    }).catch((error) => {
+        console.error('Error en inicialización:', error);
+        showLoginScreen();
+    });
 });
