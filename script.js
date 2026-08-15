@@ -1472,18 +1472,53 @@ function togglePassword() {
     }
 }
 
+const firebaseConfig = {
+    apiKey: "AIzaSyDYJd_lMdv181P9mjs04C6qEo1A-E0WFaM",
+    authDomain: "registrodespensa.firebaseapp.com",
+    projectId: "registrodespensa",
+    storageBucket: "registrodespensa.firebasestorage.app",
+    messagingSenderId: "5408982159",
+    appId: "1:5408982159:web:5c5aa852add2617a509cfa"
+};
+
+async function initFirebase() {
+    try {
+        const appModule = await import('https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js');
+        const dbModule = await import('https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js');
+        const app = appModule.initializeApp(firebaseConfig);
+        const db = dbModule.getFirestore(app);
+        window.firebaseApp = app;
+        window.firebaseDb = db;
+        window.firebaseSdk = {
+            initializeApp: appModule.initializeApp,
+            getFirestore: dbModule.getFirestore,
+            doc: dbModule.doc,
+            getDoc: dbModule.getDoc,
+            setDoc: dbModule.setDoc,
+            serverTimestamp: dbModule.serverTimestamp
+        };
+    } catch (e) {
+        console.warn('Firebase no disponible:', e);
+    }
+}
+
 initDevToolsProtection();
 
-migratePlaintextUsers().then(() => {
-    syncUsuariosFromFirebase().then(() => {
-        crearUsuarioAdminSiNoExiste().then(() => {
-            syncUsuariosFromFirebase().then(() => {
-                const loggedIn = initUserContext();
-                if (!loggedIn) {
-                    showLoginScreen();
-                } else {
-                    hideLoginScreen();
-                }
+initFirebase().then(() => {
+    migratePlaintextUsers().then(() => {
+        syncUsuariosFromFirebase().then(() => {
+            crearUsuarioAdminSiNoExiste().then(() => {
+                syncUsuariosFromFirebase().then(() => {
+                    const loggedIn = initUserContext();
+                    if (!loggedIn) {
+                        showLoginScreen();
+                    } else {
+                        hideLoginScreen();
+                        if (!esAdmin()) {
+                            actualizarBotonUsuario();
+                        }
+                    }
+                });
             });
         });
     });
