@@ -92,4 +92,8 @@ button.inline { display: inline-block; width: auto; margin-right: 8px; }
     .shopping-item button { flex: 1 1 100%; }
     #admin-view table { font-size: 13px; }
     #admin-view table th, #admin-view table td { padding: 8px 4px; }
+    .header-actions { flex-wrap: wrap; }
+    .header-actions h2 { width: 100%; margin-bottom: 10px; }
+    .header-actions > div { width: 100%; display: flex; gap: 8px; }
+    .header-actions > div button { flex: 1; }
 }
