@@ -175,7 +175,11 @@ async function doLogin() {
         setUsuarioActual(username);
         currentUser = username;
         finalizado = getFinalizado();
-        await syncFromFirebase();
+        try {
+            await syncFromFirebase();
+        } catch (e) {
+            console.warn('Error sincronizando desde Firebase en login:', e);
+        }
         hideLoginScreen();
         if (!esAdmin()) {
             actualizarDatalists();
@@ -253,7 +257,11 @@ function showLogoutConfirm() {
 }
 
 async function doLogout() {
-    await syncToFirebase();
+    try {
+        await syncToFirebase();
+    } catch (e) {
+        console.warn('Error sincronizando a Firebase en logout:', e);
+    }
     setUsuarioActual(null);
     currentUser = null;
     finalizado = false;
