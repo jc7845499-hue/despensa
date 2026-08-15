@@ -249,7 +249,11 @@ async function doRegister() {
         setUsuarioActual(username);
         currentUser = username;
         finalizado = getFinalizado();
-        await syncFromFirebase();
+        try {
+            await syncFromFirebase();
+        } catch (e) {
+            console.warn('Error sincronizando desde Firebase en registro:', e);
+        }
         hideLoginScreen();
         if (!esAdmin()) {
             actualizarDatalists();
@@ -265,34 +269,47 @@ async function doRegister() {
 }
 
 function showLogoutConfirm() {
+    console.log('Mostrando confirmación de logout');
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) loginScreen.style.display = 'none';
     pendingConfirmCallback = function() {
+        console.log('Ejecutando callback de logout');
         doLogout();
     };
     showConfirmModal('¿Cerrar Sesión?', '¿Está seguro que desea cerrar sesión?');
 }
 
 async function doLogout() {
+    console.log('Iniciando logout');
     try {
         await syncToFirebase();
     } catch (e) {
         console.warn('Error sincronizando a Firebase en logout:', e);
     }
+    
+    setUsuarioActual(null);
+    currentUser = null;
+    finalizado = false;
+    
     try {
-        setUsuarioActual(null);
-        currentUser = null;
-        finalizado = false;
         habilitarControles();
         ocultarBotonNuevaDespensa();
         limpiarInputs();
         renderProductos();
         actualizarBotonUsuario();
-        const adminView = document.getElementById('admin-view');
-        if (adminView) adminView.style.display = 'none';
-        showLoginScreen();
     } catch (e) {
-        console.warn('Error en logout:', e);
-        showLoginScreen();
+        console.warn('Error limpiando interfaz en logout:', e);
     }
+    
+    const adminView = document.getElementById('admin-view');
+    if (adminView) adminView.style.display = 'none';
+    
+    const confirmModal = document.getElementById('confirm-modal');
+    if (confirmModal) confirmModal.style.display = 'none';
+    
+    console.log('Mostrando login screen');
+    showLoginScreen();
+    console.log('Logout completado');
 }
 
 function showMessage(msg, type) {
@@ -519,29 +536,33 @@ function actualizarDatalists() {
 }
 
 function actualizarBotonUsuario() {
-    if (esAdmin()) {
-        return;
-    }
-    const btnUsuario = document.getElementById('btn-usuario');
-    const btnNuevaDespensa = document.getElementById('new-pantry-btn');
-    if (btnUsuario && btnNuevaDespensa) {
-        if (currentUser) {
-            btnUsuario.style.display = 'inline-block';
-            btnUsuario.textContent = 'Cerrar Sesión';
-            btnNuevaDespensa.style.display = finalizado ? 'inline-block' : 'none';
-        } else {
-            btnUsuario.style.display = 'none';
-            btnNuevaDespensa.style.display = 'none';
+    try {
+        if (esAdmin()) {
+            return;
         }
-    }
-    if (esAdmin()) {
-        deshabilitarControlesAdmin();
-    } else if (finalizado) {
-        deshabilitarControles();
-        mostrarBotonNuevaDespensa();
-    } else {
-        habilitarControles();
-        ocultarBotonNuevaDespensa();
+        const btnUsuario = document.getElementById('btn-usuario');
+        const btnNuevaDespensa = document.getElementById('new-pantry-btn');
+        if (btnUsuario && btnNuevaDespensa) {
+            if (currentUser) {
+                btnUsuario.style.display = 'inline-block';
+                btnUsuario.textContent = 'Cerrar Sesión';
+                btnNuevaDespensa.style.display = finalizado ? 'inline-block' : 'none';
+            } else {
+                btnUsuario.style.display = 'none';
+                btnNuevaDespensa.style.display = 'none';
+            }
+        }
+        if (esAdmin()) {
+            deshabilitarControlesAdmin();
+        } else if (finalizado) {
+            deshabilitarControles();
+            mostrarBotonNuevaDespensa();
+        } else {
+            habilitarControles();
+            ocultarBotonNuevaDespensa();
+        }
+    } catch (e) {
+        console.warn('Error actualizando botones de usuario:', e);
     }
 }
 
@@ -1150,8 +1171,14 @@ function closeConfirmModal() {
 
 async function confirmarSi() {
     const cb = pendingConfirmCallback;
+    console.log('confirmarSi llamado, callback:', typeof cb);
     closeConfirmModal();
-    if (cb) await cb();
+    if (cb) {
+        console.log('Ejecutando callback de confirmación');
+        await cb();
+    } else {
+        console.warn('No hay callback de confirmación');
+    }
 }
 
 function confirmarNo() {
@@ -1176,16 +1203,33 @@ function showLoginScreen() {
     const loginScreen = document.getElementById('login-screen');
     const app = document.getElementById('app');
     const adminView = document.getElementById('admin-view');
+    const confirmModal = document.getElementById('confirm-modal');
+    const savedListsModal = document.getElementById('saved-lists-modal');
+    const resumenModal = document.getElementById('resumen-modal');
+    
     if (loginScreen) loginScreen.style.display = 'flex';
     if (app) app.style.display = 'none';
     if (adminView) adminView.style.display = 'none';
+    if (confirmModal) confirmModal.style.display = 'none';
+    if (savedListsModal) savedListsModal.style.display = 'none';
+    if (resumenModal) resumenModal.style.display = 'none';
+    
+    pendingConfirmCallback = null;
 }
 
 function hideLoginScreen() {
     const loginScreen = document.getElementById('login-screen');
     const app = document.getElementById('app');
     const adminView = document.getElementById('admin-view');
+    const confirmModal = document.getElementById('confirm-modal');
+    const savedListsModal = document.getElementById('saved-lists-modal');
+    const resumenModal = document.getElementById('resumen-modal');
+    
     if (loginScreen) loginScreen.style.display = 'none';
+    if (confirmModal) confirmModal.style.display = 'none';
+    if (savedListsModal) savedListsModal.style.display = 'none';
+    if (resumenModal) resumenModal.style.display = 'none';
+    
     if (esAdmin()) {
         if (app) app.style.display = 'none';
         if (adminView) adminView.style.display = 'block';
@@ -1553,15 +1597,7 @@ initFirebase().then(() => {
 }).then(() => {
     return syncUsuariosFromFirebase();
 }).then(() => {
-    const loggedIn = initUserContext();
-    if (!loggedIn) {
-        showLoginScreen();
-    } else {
-        hideLoginScreen();
-        if (!esAdmin()) {
-            actualizarBotonUsuario();
-        }
-    }
+    showLoginScreen();
 }).catch(() => {
     showLoginScreen();
 });
