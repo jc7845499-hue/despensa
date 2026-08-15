@@ -277,11 +277,12 @@ async function doRegister() {
 
 function showLogoutConfirm() {
     console.log('Mostrando confirmación de logout');
-    console.log('doLogout existe:', typeof doLogout);
+    console.log('doLogout existe en showLogoutConfirm:', typeof window.doLogout);
     pendingConfirmCallback = function() {
         console.log('Ejecutando callback de logout');
+        console.log('doLogout existe en callback:', typeof window.doLogout);
         try {
-            doLogout();
+            window.doLogout();
         } catch (e) {
             console.error('Error ejecutando doLogout desde callback:', e);
         }
@@ -289,85 +290,35 @@ function showLogoutConfirm() {
     showConfirmModal('¿Cerrar Sesión?', '¿Está seguro que desea cerrar sesión?');
 }
 
-async function doLogout() {
+function doLogout() {
     console.log('Iniciando logout');
-    
-    const username = currentUser;
-    
     try {
-        if (username && firebaseEnabled()) {
-            console.log('Sincronizando datos a Firebase antes de logout para:', username);
-            try {
-                await syncToFirebase();
-                console.log('Sincronización completada');
-            } catch (e) {
-                console.warn('Error sincronizando a Firebase en logout:', e);
-            }
-        } else {
-            console.log('Firebase no habilitado o no hay usuario, saltando sincronización');
-        }
-        
         setUsuarioActual(null);
         currentUser = null;
         finalizado = false;
-        
-        try {
-            habilitarControles();
-            ocultarBotonNuevaDespensa();
-            limpiarInputs();
-            renderProductos();
-            actualizarBotonUsuario();
-        } catch (e) {
-            console.warn('Error limpiando interfaz en logout:', e);
-        }
-        
-        const adminView = document.getElementById('admin-view');
-        if (adminView) adminView.style.display = 'none';
-        
-        const confirmModal = document.getElementById('confirm-modal');
-        if (confirmModal) confirmModal.style.display = 'none';
-        
-        const app = document.getElementById('app');
-        if (app) app.style.display = 'none';
-        
-        const savedListsModal = document.getElementById('saved-lists-modal');
-        if (savedListsModal) savedListsModal.style.display = 'none';
-        
-        const resumenModal = document.getElementById('resumen-modal');
-        if (resumenModal) resumenModal.style.display = 'none';
-        
-        console.log('Mostrando login screen');
-        showLoginScreen();
-        
-        setTimeout(() => {
-            console.log('Verificación post-logout: asegurando que el login esté visible');
-            const loginScreen = document.getElementById('login-screen');
-            const confirmModal = document.getElementById('confirm-modal');
-            const app = document.getElementById('app');
-            const adminView = document.getElementById('admin-view');
-            
-            if (loginScreen) {
-                loginScreen.style.display = 'flex';
-                loginScreen.style.visibility = 'visible';
-                loginScreen.style.opacity = '1';
-            }
-            if (confirmModal) confirmModal.style.display = 'none';
-            if (app) app.style.display = 'none';
-            if (adminView) adminView.style.display = 'none';
-        }, 100);
-        
-        console.log('Logout completado');
+        habilitarControles();
+        ocultarBotonNuevaDespensa();
+        limpiarInputs();
+        renderProductos();
+        actualizarBotonUsuario();
     } catch (e) {
-        console.error('Error en logout, forzando login screen:', e);
-        const adminView = document.getElementById('admin-view');
-        if (adminView) adminView.style.display = 'none';
-        const confirmModal = document.getElementById('confirm-modal');
-        if (confirmModal) confirmModal.style.display = 'none';
-        const app = document.getElementById('app');
-        if (app) app.style.display = 'none';
-        showLoginScreen();
+        console.warn('Error limpiando interfaz en logout:', e);
     }
+    const adminView = document.getElementById('admin-view');
+    if (adminView) adminView.style.display = 'none';
+    const confirmModal = document.getElementById('confirm-modal');
+    if (confirmModal) confirmModal.style.display = 'none';
+    const app = document.getElementById('app');
+    if (app) app.style.display = 'none';
+    const savedListsModal = document.getElementById('saved-lists-modal');
+    if (savedListsModal) savedListsModal.style.display = 'none';
+    const resumenModal = document.getElementById('resumen-modal');
+    if (resumenModal) resumenModal.style.display = 'none';
+    showLoginScreen();
+    console.log('Logout completado');
 }
+
+console.log('doLogout cargado:', typeof doLogout);
 
 function showMessage(msg, type) {
     const msgEl = document.getElementById('message');
@@ -389,10 +340,14 @@ async function firebaseGetUserDoc(field) {
     try {
         const db = window.firebaseDb;
         const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
+        console.log('firebaseGetUserDoc leyendo campo:', field, 'en documento:', docRef.path);
         const docSnap = await window.firebaseSdk.getDoc(docRef);
         if (docSnap.exists()) {
-            return docSnap.data()[field];
+            const value = docSnap.data()[field];
+            console.log('firebaseGetUserDoc valor leído:', value);
+            return value;
         }
+        console.log('firebaseGetUserDoc: documento no existe para', currentUser);
     } catch (e) {
         console.warn('Error leyendo Firebase:', e);
     }
@@ -419,7 +374,9 @@ async function syncFromFirebase() {
         console.log('Sincronizando datos desde Firebase para:', currentUser);
         const db = window.firebaseDb;
         const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
+        console.log('Intentando leer documento:', docRef.path);
         const docSnap = await window.firebaseSdk.getDoc(docRef);
+        console.log('Documento leído, existe:', docSnap.exists());
         if (docSnap.exists()) {
             const data = docSnap.data();
             console.log('Datos recibidos desde Firebase:', data);
@@ -460,6 +417,7 @@ async function syncToFirebase() {
         const finalizadoVal = getFinalizado();
         const db = window.firebaseDb;
         const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
+        console.log('Intentando escribir documento:', docRef.path);
         await window.firebaseSdk.setDoc(docRef, {
             productos,
             historialPrecios: historial,
@@ -1680,7 +1638,7 @@ async function initFirebase() {
             setDoc: dbModule.setDoc,
             serverTimestamp: dbModule.serverTimestamp
         };
-        console.log('Firebase inicializado correctamente');
+        console.log('Firebase inicializado correctamente, firebaseDb disponible:', !!window.firebaseDb);
     } catch (e) {
         console.warn('Firebase no disponible:', e);
     }
