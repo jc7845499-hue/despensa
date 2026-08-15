@@ -15,8 +15,13 @@ function getUserKey(baseKey) {
 }
 
 function getUsuarios() {
-    const data = localStorage.getItem(USERS_KEY);
-    return data ? JSON.parse(data) : [];
+    try {
+        const data = localStorage.getItem(USERS_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch (e) {
+        console.warn('Error leyendo usuarios de localStorage:', e);
+        return [];
+    }
 }
 
 async function syncUsuariosFromFirebase() {
@@ -92,6 +97,16 @@ async function generateSalt() {
     const salt = new Uint8Array(16);
     crypto.getRandomValues(salt);
     return btoa(String.fromCharCode.apply(null, salt));
+}
+
+function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return btoa(String.fromCharCode(Math.abs(hash)));
 }
 
 async function hashPassword(password, saltBase64) {
@@ -262,17 +277,22 @@ async function doLogout() {
     } catch (e) {
         console.warn('Error sincronizando a Firebase en logout:', e);
     }
-    setUsuarioActual(null);
-    currentUser = null;
-    finalizado = false;
-    habilitarControles();
-    ocultarBotonNuevaDespensa();
-    limpiarInputs();
-    renderProductos();
-    actualizarBotonUsuario();
-    const adminView = document.getElementById('admin-view');
-    if (adminView) adminView.style.display = 'none';
-    showLoginScreen();
+    try {
+        setUsuarioActual(null);
+        currentUser = null;
+        finalizado = false;
+        habilitarControles();
+        ocultarBotonNuevaDespensa();
+        limpiarInputs();
+        renderProductos();
+        actualizarBotonUsuario();
+        const adminView = document.getElementById('admin-view');
+        if (adminView) adminView.style.display = 'none';
+        showLoginScreen();
+    } catch (e) {
+        console.warn('Error en logout:', e);
+        showLoginScreen();
+    }
 }
 
 function showMessage(msg, type) {
@@ -365,18 +385,23 @@ async function syncToFirebase() {
 
 function getProductos() {
     if (!currentUser) return [];
-    let data = localStorage.getItem(getUserKey(BASE_STORAGE_KEY));
-    let productos = data ? JSON.parse(data) : [];
-    if (productos.length === 0 && firebaseEnabled()) {
-        firebaseGetUserDoc('productos').then(remote => {
-            if (Array.isArray(remote)) {
-                localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(remote));
-                renderProductos();
-                actualizarDatalists();
-            }
-        });
+    try {
+        let data = localStorage.getItem(getUserKey(BASE_STORAGE_KEY));
+        let productos = data ? JSON.parse(data) : [];
+        if (productos.length === 0 && firebaseEnabled()) {
+            firebaseGetUserDoc('productos').then(remote => {
+                if (Array.isArray(remote)) {
+                    localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(remote));
+                    renderProductos();
+                    actualizarDatalists();
+                }
+            });
+        }
+        return productos;
+    } catch (e) {
+        console.warn('Error leyendo productos de localStorage:', e);
+        return [];
     }
-    return productos;
 }
 
 function saveProductos(productos) {
@@ -386,16 +411,21 @@ function saveProductos(productos) {
 
 function getHistorialPrecios() {
     if (!currentUser) return {};
-    let data = localStorage.getItem(getUserKey(BASE_PRICE_HISTORY_KEY));
-    let historial = data ? JSON.parse(data) : {};
-    if (Object.keys(historial).length === 0 && firebaseEnabled()) {
-        firebaseGetUserDoc('historialPrecios').then(remote => {
-            if (remote && typeof remote === 'object') {
-                localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(remote));
-            }
-        });
+    try {
+        let data = localStorage.getItem(getUserKey(BASE_PRICE_HISTORY_KEY));
+        let historial = data ? JSON.parse(data) : {};
+        if (Object.keys(historial).length === 0 && firebaseEnabled()) {
+            firebaseGetUserDoc('historialPrecios').then(remote => {
+                if (remote && typeof remote === 'object') {
+                    localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(remote));
+                }
+            });
+        }
+        return historial;
+    } catch (e) {
+        console.warn('Error leyendo historial de precios de localStorage:', e);
+        return {};
     }
-    return historial;
 }
 
 function saveHistorialPrecios(historial) {
@@ -405,16 +435,21 @@ function saveHistorialPrecios(historial) {
 
 function getSavedLists() {
     if (!currentUser) return [];
-    let data = localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY));
-    let listas = data ? JSON.parse(data) : [];
-    if (listas.length === 0 && firebaseEnabled()) {
-        firebaseGetUserDoc('listasGuardadas').then(remote => {
-            if (Array.isArray(remote)) {
-                localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(remote));
-            }
-        });
+    try {
+        let data = localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY));
+        let listas = data ? JSON.parse(data) : [];
+        if (listas.length === 0 && firebaseEnabled()) {
+            firebaseGetUserDoc('listasGuardadas').then(remote => {
+                if (Array.isArray(remote)) {
+                    localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(remote));
+                }
+            });
+        }
+        return listas;
+    } catch (e) {
+        console.warn('Error leyendo listas guardadas de localStorage:', e);
+        return [];
     }
-    return listas;
 }
 
 function saveSavedLists(listas) {
@@ -424,15 +459,20 @@ function saveSavedLists(listas) {
 
 function getFinalizado() {
     if (!currentUser) return false;
-    let val = localStorage.getItem(getUserKey(BASE_FINALIZADO_KEY));
-    if (val === null && firebaseEnabled()) {
-        firebaseGetUserDoc('finalizado').then(remote => {
-            if (remote !== null && remote !== undefined) {
-                localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), remote ? 'true' : 'false');
-            }
-        });
+    try {
+        let val = localStorage.getItem(getUserKey(BASE_FINALIZADO_KEY));
+        if (val === null && firebaseEnabled()) {
+            firebaseGetUserDoc('finalizado').then(remote => {
+                if (remote !== null && remote !== undefined) {
+                    localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), remote ? 'true' : 'false');
+                }
+            });
+        }
+        return val === 'true';
+    } catch (e) {
+        console.warn('Error leyendo finalizado de localStorage:', e);
+        return false;
     }
-    return val === 'true';
 }
 
 function setFinalizado(val) {
@@ -1505,21 +1545,23 @@ async function initFirebase() {
 initDevToolsProtection();
 
 initFirebase().then(() => {
-    migratePlaintextUsers().then(() => {
-        syncUsuariosFromFirebase().then(() => {
-            crearUsuarioAdminSiNoExiste().then(() => {
-                syncUsuariosFromFirebase().then(() => {
-                    const loggedIn = initUserContext();
-                    if (!loggedIn) {
-                        showLoginScreen();
-                    } else {
-                        hideLoginScreen();
-                        if (!esAdmin()) {
-                            actualizarBotonUsuario();
-                        }
-                    }
-                });
-            });
-        });
-    });
+    return migratePlaintextUsers();
+}).then(() => {
+    return syncUsuariosFromFirebase();
+}).then(() => {
+    return crearUsuarioAdminSiNoExiste();
+}).then(() => {
+    return syncUsuariosFromFirebase();
+}).then(() => {
+    const loggedIn = initUserContext();
+    if (!loggedIn) {
+        showLoginScreen();
+    } else {
+        hideLoginScreen();
+        if (!esAdmin()) {
+            actualizarBotonUsuario();
+        }
+    }
+}).catch(() => {
+    showLoginScreen();
 });
