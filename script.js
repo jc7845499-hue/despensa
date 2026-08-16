@@ -1108,15 +1108,13 @@ function getPrecioAnterior(nombre) {
 
 function handleShoppingKeypress(e) {
     if (e.key === 'Enter') {
-        e.preventDefault();
-        agregarDesdeShopping();
+        setTimeout(() => agregarDesdeShopping(), 0);
     }
 }
 
 function handleProductKeypress(e) {
     if (e.key === 'Enter') {
-        e.preventDefault();
-        agregarProducto();
+        setTimeout(() => agregarProducto(), 0);
     }
 }
 
@@ -1851,8 +1849,15 @@ function toggleChangePassword(btn) {
     const input = wrapper ? wrapper.querySelector('input') : null;
     if (!input) return;
     const isPassword = input.type === 'password';
-    input.type = isPassword ? 'text' : 'password';
+    const newType = isPassword ? 'text' : 'password';
+    input.type = newType;
     btn.textContent = isPassword ? '🙈' : '👁';
+    if (input.id === 'change-password-new') {
+        const confirmInput = document.getElementById('change-password-confirm');
+        const confirmBtn = confirmInput ? confirmInput.closest('.password-wrapper').querySelector('.password-toggle') : null;
+        if (confirmInput) confirmInput.type = newType;
+        if (confirmBtn) confirmBtn.textContent = isPassword ? '🙈' : '👁';
+    }
 }
 
 const firebaseConfig = {
@@ -1900,7 +1905,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (productNameInput) {
         productNameInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault();
                 const productPriceInput = document.getElementById('product-price');
                 if (productPriceInput) productPriceInput.focus();
             }
@@ -1911,8 +1915,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (productPriceInput) {
         productPriceInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault();
-                agregarProducto();
+                setTimeout(() => agregarProducto(), 0);
             }
         });
     }
