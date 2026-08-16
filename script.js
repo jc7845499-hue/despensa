@@ -330,6 +330,7 @@ function doLogout() {
     } catch (e) {
         console.warn('Error limpiando interfaz en logout:', e);
     }
+    setSyncStatus('local');
     const adminView = document.getElementById('admin-view');
     if (adminView) adminView.style.display = 'none';
     const confirmModal = document.getElementById('confirm-modal');
@@ -356,6 +357,19 @@ function showMessage(msg, type) {
 
 function firebaseEnabled() {
     return typeof window !== 'undefined' && window.firebaseDb && currentUser;
+}
+
+function setSyncStatus(status) {
+    const el = document.getElementById('sync-indicator');
+    if (!el) return;
+    el.className = 'sync-indicator ' + status;
+    const texts = {
+        synced: 'Sincronizado',
+        saving: 'Guardando...',
+        local: 'Local',
+        error: 'Error de sincronización'
+    };
+    el.textContent = texts[status] || '';
 }
 
 async function firebaseGetUserDoc(field) {
@@ -451,6 +465,7 @@ function saveProductos(productos) {
 
 async function syncToFirebase() {
     if (!firebaseEnabled()) return;
+    setSyncStatus('saving');
     try {
         const key = getUserKey(BASE_STORAGE_KEY);
         const productos = JSON.parse(localStorage.getItem(key) || '[]');
@@ -466,8 +481,10 @@ async function syncToFirebase() {
             finalizado: finalizadoVal,
             updatedAt: window.firebaseSdk.serverTimestamp()
         }, { merge: true });
+        setSyncStatus('synced');
     } catch (e) {
         console.warn('Error sincronizando a Firebase:', e);
+        setSyncStatus('error');
     }
 }
 
@@ -686,7 +703,7 @@ function getUsuariosParaAdmin() {
     }));
 }
 
-function eliminarUsuarioPorAdmin(username) {
+async function eliminarUsuarioPorAdmin(username) {
     if (!esAdmin()) {
         showMessage('No tienes permisos de administrador', 'error');
         return;
@@ -697,7 +714,16 @@ function eliminarUsuarioPorAdmin(username) {
     }
     let usuarios = getUsuarios();
     usuarios = usuarios.filter(u => u.username !== username);
-    saveUsuarios(usuarios);
+    await saveUsuarios(usuarios);
+    if (window.firebaseDb && window.firebaseSdk) {
+        try {
+            const db = window.firebaseDb;
+            const docRef = window.firebaseSdk.doc(db, 'despensa', username);
+            await window.firebaseSdk.deleteDoc(docRef);
+        } catch (e) {
+            console.warn('Error eliminando documento de Firebase:', e);
+        }
+    }
     const usuarioActual = getUsuarioActual();
     if (usuarioActual === username) {
         doLogout();
@@ -1310,6 +1336,7 @@ function showLoginScreen() {
     if (savedListsModal) savedListsModal.style.display = 'none';
     if (resumenModal) resumenModal.style.display = 'none';
     
+    setSyncStatus('local');
     pendingConfirmCallback = null;
     
     const body = document.body;
@@ -1351,6 +1378,12 @@ function hideLoginScreen() {
     } else {
         if (app) app.style.display = 'block';
         if (adminView) adminView.style.display = 'none';
+    }
+
+    if (firebaseEnabled()) {
+        setSyncStatus('synced');
+    } else {
+        setSyncStatus('local');
     }
 }
 
@@ -1696,7 +1729,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const productNameInput = document.getElementById('product-name');
     if (productNameInput) {
-        productNameInput.addEventListener('keypress', (e) => {
+        productNameInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 const productPriceInput = document.getElementById('product-price');
@@ -1707,7 +1740,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const productPriceInput = document.getElementById('product-price');
     if (productPriceInput) {
-        productPriceInput.addEventListener('keypress', (e) => {
+        productPriceInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 agregarProducto();
@@ -1724,7 +1757,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const loginPasswordInput = document.getElementById('login-password');
     if (loginPasswordInput) {
-        loginPasswordInput.addEventListener('keypress', (e) => {
+        loginPasswordInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 doLogin();
             }

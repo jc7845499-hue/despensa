@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div id="sync-indicator" class="sync-indicator" style="display: none;">Sincronizado</div>
     <div id="app" style="display: none;">
     <div class="container">
         <h1>Registro de Despensa</h1>
@@ -24,9 +25,9 @@
             <p style="font-size: 13px; color: #777; margin-bottom: 12px;">Define los productos que comprarás, cuántas unidades necesitas y el precio aproximado por unidad.</p>
             <div id="shopping-inputs">
                 <div class="shopping-item">
-                    <input type="text" id="shopping-name" placeholder="Nombre del producto..." list="shopping-names" onkeypress="handleShoppingKeypress(event)">
-                    <input type="number" id="shopping-qty" placeholder="Cant." min="1" value="1" onkeypress="handleShoppingKeypress(event)">
-                    <input type="number" id="shopping-approx-price" placeholder="Precio aprox. ($)" step="0.01" min="0" onkeypress="handleShoppingKeypress(event)">
+                     <input type="text" id="shopping-name" placeholder="Nombre del producto..." list="shopping-names" onkeydown="handleShoppingKeypress(event)">
+                     <input type="number" id="shopping-qty" placeholder="Cant." min="1" value="1" onkeydown="handleShoppingKeypress(event)">
+                     <input type="number" id="shopping-approx-price" placeholder="Precio aprox. ($)" step="0.01" min="0" onkeydown="handleShoppingKeypress(event)">
                     <button onclick="agregarDesdeShopping()" style="width: auto; padding: 10px 12px;">+</button>
                 </div>
             </div>
@@ -37,7 +38,7 @@
             <h2>Registrar Precio por Unidad</h2>
             <div class="form-group">
                 <label for="product-name">Nombre del Producto</label>
-                <input type="text" id="product-name" placeholder="Ej: Arroz, Leche, Pan..." list="product-names" onkeypress="handleProductKeypress(event)">
+                 <input type="text" id="product-name" placeholder="Ej: Arroz, Leche, Pan..." list="product-names" onkeydown="handleProductKeypress(event)">
             </div>
             <div class="form-group">
                 <label for="product-price">Precio por Unidad ($)</label>
@@ -107,12 +108,12 @@
             <h2 id="login-title">Iniciar Sesión</h2>
             <div class="form-group">
                 <label for="login-username">Usuario</label>
-                <input type="text" id="login-username" placeholder="Nombre de usuario" onkeypress="if(event.key==='Enter') document.getElementById('login-password').focus()">
+                 <input type="text" id="login-username" placeholder="Nombre de usuario" onkeydown="if(event.key==='Enter') document.getElementById('login-password').focus()">
             </div>
             <div class="form-group">
                 <label for="login-password">Contraseña</label>
                 <div class="password-wrapper">
-                    <input type="password" id="login-password" placeholder="Contraseña" onkeypress="if(event.key==='Enter') document.getElementById('login-submit').click()">
+                    <input type="password" id="login-password" placeholder="Contraseña" onkeydown="if(event.key==='Enter') document.getElementById('login-submit').click()">
                     <button type="button" id="toggle-password" class="password-toggle" onclick="togglePassword()">👁</button>
                 </div>
             </div>
