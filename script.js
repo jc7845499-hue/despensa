@@ -1915,7 +1915,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!datalist) return;
             const options = Array.from(datalist.options).map(opt => opt.value);
             if (options.includes(value)) {
-                setTimeout(() => productPriceInput.focus(), 50);
+                setTimeout(() => productPriceInput.focus(), 10);
             }
         });
         productNameInput.addEventListener('keydown', (e) => {
@@ -1929,7 +1929,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (options.includes(value)) {
                         productPriceInput.focus();
                     }
-                }, 0);
+                }, 10);
             }
         });
     }
@@ -1953,7 +1953,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!datalist) return;
             const options = Array.from(datalist.options).map(opt => opt.value);
             if (options.includes(value)) {
-                setTimeout(() => shoppingQtyInput.focus(), 50);
+                setTimeout(() => shoppingQtyInput.focus(), 10);
             }
         });
         shoppingNameInput.addEventListener('keydown', (e) => {
@@ -1967,7 +1967,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (options.includes(value)) {
                         shoppingQtyInput.focus();
                     }
-                }, 0);
+                }, 10);
             }
         });
     }
