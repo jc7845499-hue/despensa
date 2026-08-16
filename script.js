@@ -1908,9 +1908,14 @@ window.addEventListener('DOMContentLoaded', () => {
     const productNameInput = document.getElementById('product-name');
     const productPriceInput = document.getElementById('product-price');
     if (productNameInput && productPriceInput) {
-        productNameInput.addEventListener('change', () => {
-            if (productNameInput.value.trim()) {
-                productPriceInput.focus();
+        productNameInput.addEventListener('input', () => {
+            const value = productNameInput.value.trim();
+            if (!value) return;
+            const datalist = document.getElementById('product-names');
+            if (!datalist) return;
+            const options = Array.from(datalist.options).map(opt => opt.value);
+            if (options.includes(value)) {
+                setTimeout(() => productPriceInput.focus(), 0);
             }
         });
     }
@@ -1926,11 +1931,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const shoppingNameInput = document.getElementById('shopping-name');
     const shoppingQtyInput = document.getElementById('shopping-qty');
-    const shoppingApproxInput = document.getElementById('shopping-approx-price');
     if (shoppingNameInput && shoppingQtyInput) {
-        shoppingNameInput.addEventListener('change', () => {
-            if (shoppingNameInput.value.trim()) {
-                shoppingQtyInput.focus();
+        shoppingNameInput.addEventListener('input', () => {
+            const value = shoppingNameInput.value.trim();
+            if (!value) return;
+            const datalist = document.getElementById('shopping-names');
+            if (!datalist) return;
+            const options = Array.from(datalist.options).map(opt => opt.value);
+            if (options.includes(value)) {
+                setTimeout(() => shoppingQtyInput.focus(), 0);
             }
         });
     }
@@ -1944,6 +1953,7 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const shoppingApproxInput = document.getElementById('shopping-approx-price');
     if (shoppingApproxInput) {
         shoppingApproxInput.addEventListener('keyup', (e) => {
             if (e.key === 'Enter') {
