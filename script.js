@@ -809,7 +809,7 @@ function renderizarPanelAdmin() {
                 pendingConfirmCallback = function() {
                     eliminarUsuarioPorAdmin(u.username);
                 };
-                showConfirmModal('¿Está seguro?', `¿Desea eliminar al usuario "${u.username}"?`);
+                showConfirmModal('¿Está seguro?', `¿Desea eliminar al usuario "${escapeHtml(u.username)}"?`);
             };
             actionCell.appendChild(btnEliminar);
         } else {
@@ -1208,10 +1208,16 @@ function confirmarFinalizarCompleto() {
         showMessage('No hay productos en la lista', 'error');
         return;
     }
+    const pendientes = productos.filter(p => p.pendiente || !p.precio);
+    let mensaje = 'Una vez finalizado, no podrá agregar más productos.';
+    if (pendientes.length > 0) {
+        const items = pendientes.map(p => `<li>${escapeHtml(p.nombre)}</li>`).join('');
+        mensaje = `Hay productos pendientes por surtir:<br><ul style="text-align:left; display:inline-block;">${items}</ul><br>Una vez finalizado, no podrá agregar más productos.`;
+    }
     pendingConfirmCallback = function() {
         finalizarRegistroCompleto();
     };
-    showConfirmModal('¿Seguro que desea finalizar el registro?', 'Una vez finalizado, no podrá agregar más productos.');
+    showConfirmModal('¿Seguro que desea finalizar el registro?', mensaje);
 }
 
 function escapeHtml(text) {
@@ -1226,7 +1232,8 @@ function showConfirmModal(title, message) {
     messageEl.textContent = '';
     const temp = document.createElement('div');
     temp.innerHTML = message;
-    messageEl.textContent = temp.textContent || '';
+    messageEl.innerHTML = temp.innerHTML || '';
+    
     const modal = document.getElementById('confirm-modal');
     modal.style.display = 'flex';
     
