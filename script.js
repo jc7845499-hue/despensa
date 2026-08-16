@@ -834,18 +834,25 @@ function getUsuariosParaAdmin() {
 }
 
 async function limpiarDatosFirebaseUsuario(username) {
-    if (!firebaseEnabled()) return;
+    if (!window.firebaseDb || !window.firebaseSdk) return;
     try {
         const db = window.firebaseDb;
         const docRef = window.firebaseSdk.doc(db, 'despensa', username);
-        await window.firebaseSdk.setDoc(docRef, {
-            productos: [],
-            historialPrecios: {},
-            listasGuardadas: [],
-            finalizado: false
-        });
+        await window.firebaseSdk.deleteDoc(docRef);
     } catch (e) {
-        console.warn('Error limpiando datos de Firebase para usuario:', e);
+        console.warn('Error eliminando documento de Firebase para usuario:', e);
+        try {
+            const db = window.firebaseDb;
+            const docRef = window.firebaseSdk.doc(db, 'despensa', username);
+            await window.firebaseSdk.setDoc(docRef, {
+                productos: [],
+                historialPrecios: {},
+                listasGuardadas: [],
+                finalizado: false
+            });
+        } catch (e2) {
+            console.warn('Error limpiando datos de Firebase para usuario:', e2);
+        }
     }
 }
 
