@@ -1838,14 +1838,21 @@ function renderSavedLists() {
 
 function togglePassword() {
     const passwordInput = document.getElementById('login-password');
+    const confirmInput = document.getElementById('login-password-confirm');
     const toggleBtn = document.getElementById('toggle-password');
-    if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        toggleBtn.textContent = '🙈';
-    } else {
-        passwordInput.type = 'password';
-        toggleBtn.textContent = '👁';
-    }
+    const isPassword = passwordInput.type === 'password';
+    passwordInput.type = isPassword ? 'text' : 'password';
+    if (confirmInput) confirmInput.type = isPassword ? 'text' : 'password';
+    toggleBtn.textContent = isPassword ? '🙈' : '👁';
+}
+
+function toggleChangePassword(btn) {
+    const wrapper = btn.closest('.password-wrapper');
+    const input = wrapper ? wrapper.querySelector('input') : null;
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    btn.textContent = isPassword ? '🙈' : '👁';
 }
 
 const firebaseConfig = {

@@ -169,15 +169,24 @@
             <h3 id="change-password-title">Cambiar Contraseña</h3>
             <div class="form-group">
                 <label for="change-password-old">Contraseña Actual</label>
-                <input type="password" id="change-password-old" placeholder="Ingresa tu contraseña actual">
+                <div class="password-wrapper">
+                    <input type="password" id="change-password-old" placeholder="Ingresa tu contraseña actual">
+                    <button type="button" class="password-toggle" onclick="toggleChangePassword(this)">👁</button>
+                </div>
             </div>
             <div class="form-group">
                 <label for="change-password-new">Nueva Contraseña</label>
-                <input type="password" id="change-password-new" placeholder="Nueva contraseña">
+                <div class="password-wrapper">
+                    <input type="password" id="change-password-new" placeholder="Nueva contraseña">
+                    <button type="button" class="password-toggle" onclick="toggleChangePassword(this)">👁</button>
+                </div>
             </div>
             <div class="form-group">
                 <label for="change-password-confirm">Confirmar Nueva Contraseña</label>
-                <input type="password" id="change-password-confirm" placeholder="Confirma la nueva contraseña">
+                <div class="password-wrapper">
+                    <input type="password" id="change-password-confirm" placeholder="Confirma la nueva contraseña">
+                    <button type="button" class="password-toggle" onclick="toggleChangePassword(this)">👁</button>
+                </div>
             </div>
             <p id="change-password-error" style="color: #c62828; font-size: 13px; margin-top: 8px; display: none;"></p>
             <button class="green inline small" onclick="confirmChangePassword()" style="margin-top: 10px;">Guardar Cambios</button>
