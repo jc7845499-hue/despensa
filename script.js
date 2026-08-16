@@ -8,10 +8,14 @@ const BASE_FINALIZADO_KEY = 'despensaFinalizada';
 let finalizado = false;
 let pendingConfirmCallback = null;
 let currentUser = null;
+let productosCache = null;
+let historialPreciosCache = null;
+let savedListsCache = null;
 
-function getUserKey(baseKey) {
-    if (!currentUser) return baseKey;
-    return baseKey + '_' + currentUser;
+function getUserKey(baseKey, username) {
+    const user = username || currentUser;
+    if (!user) return baseKey;
+    return baseKey + '_' + user;
 }
 
 function getUsuarios() {
@@ -92,6 +96,9 @@ function initUserContext() {
     const username = getUsuarioActual();
     if (username) {
         currentUser = username;
+        productosCache = null;
+        historialPreciosCache = null;
+        savedListsCache = null;
         finalizado = getFinalizado();
         return true;
     }
@@ -111,7 +118,7 @@ function simpleHash(str) {
         hash = ((hash << 5) - hash) + char;
         hash = hash & hash;
     }
-    return btoa(String.fromCharCode(Math.abs(hash)));
+    return btoa(String(Math.abs(hash)));
 }
 
 async function hashPassword(password, saltBase64) {
@@ -127,7 +134,12 @@ async function hashPassword(password, saltBase64) {
             keyMaterial,
             256
         );
-        return btoa(String.fromCharCode.apply(null, new Uint8Array(derivedBits)));
+        const bytes = new Uint8Array(derivedBits);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
     } catch (e) {
         console.warn('Fallo crypto.subtle, usando fallback:', e);
         return simpleHash(saltBase64 + password);
@@ -200,6 +212,9 @@ async function doLogin() {
 
         setUsuarioActual(username);
         currentUser = username;
+        productosCache = null;
+        historialPreciosCache = null;
+        savedListsCache = null;
         finalizado = getFinalizado();
         try {
             await syncFromFirebase();
@@ -260,6 +275,9 @@ async function doRegister() {
 
         setUsuarioActual(username);
         currentUser = username;
+        productosCache = null;
+        historialPreciosCache = null;
+        savedListsCache = null;
         finalizado = getFinalizado();
         try {
             await syncFromFirebase();
@@ -301,6 +319,9 @@ function doLogout() {
         setUsuarioActual(null);
         currentUser = null;
         finalizado = false;
+        productosCache = null;
+        historialPreciosCache = null;
+        savedListsCache = null;
         habilitarControles();
         ocultarBotonNuevaDespensa();
         limpiarInputs();
@@ -393,46 +414,27 @@ async function syncFromFirebase() {
     }
 }
 
-async function syncToFirebase() {
-    if (!firebaseEnabled()) {
-        return;
-    }
-    try {
-        const productos = getProductos();
-        const historial = getHistorialPrecios();
-        const listas = getSavedLists();
-        const finalizadoVal = getFinalizado();
-        const db = window.firebaseDb;
-        const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
-        await window.firebaseSdk.setDoc(docRef, {
-            productos,
-            historialPrecios: historial,
-            listasGuardadas: listas,
-            finalizado: finalizadoVal,
-            updatedAt: window.firebaseSdk.serverTimestamp()
-        }, { merge: true });
-    } catch (e) {
-        console.warn('Error sincronizando a Firebase:', e);
-    }
-}
-
 function getProductos() {
     if (!currentUser) return [];
     try {
         const key = getUserKey(BASE_STORAGE_KEY);
-        let data = localStorage.getItem(key);
-        let productos = data ? JSON.parse(data) : [];
-        if (productos.length === 0 && firebaseEnabled()) {
+        if (productosCache === null) {
+            let data = localStorage.getItem(key);
+            productosCache = data ? JSON.parse(data) : [];
+        }
+        if (productosCache.length === 0 && firebaseEnabled()) {
             firebaseGetUserDoc('productos').then(remote => {
                 if (Array.isArray(remote)) {
+                    productosCache = remote;
                     localStorage.setItem(key, JSON.stringify(remote));
                     renderProductos();
                     actualizarDatalists();
                 }
             });
         }
-        return productos;
+        return productosCache;
     } catch (e) {
+        productosCache = [];
         console.warn('Error leyendo productos de localStorage:', e);
         return [];
     }
@@ -440,6 +442,7 @@ function getProductos() {
 
 function saveProductos(productos) {
     const key = getUserKey(BASE_STORAGE_KEY);
+    productosCache = productos;
     localStorage.setItem(key, JSON.stringify(productos));
     syncToFirebase();
 }
@@ -469,23 +472,28 @@ async function syncToFirebase() {
 function getHistorialPrecios() {
     if (!currentUser) return {};
     try {
-        let data = localStorage.getItem(getUserKey(BASE_PRICE_HISTORY_KEY));
-        let historial = data ? JSON.parse(data) : {};
-        if (Object.keys(historial).length === 0 && firebaseEnabled()) {
+        if (historialPreciosCache === null) {
+            let data = localStorage.getItem(getUserKey(BASE_PRICE_HISTORY_KEY));
+            historialPreciosCache = data ? JSON.parse(data) : {};
+        }
+        if (Object.keys(historialPreciosCache).length === 0 && firebaseEnabled()) {
             firebaseGetUserDoc('historialPrecios').then(remote => {
                 if (remote && typeof remote === 'object') {
+                    historialPreciosCache = remote;
                     localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(remote));
                 }
             });
         }
-        return historial;
+        return historialPreciosCache;
     } catch (e) {
+        historialPreciosCache = {};
         console.warn('Error leyendo historial de precios de localStorage:', e);
         return {};
     }
 }
 
 function saveHistorialPrecios(historial) {
+    historialPreciosCache = historial;
     localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(historial));
     syncToFirebase();
 }
@@ -493,23 +501,28 @@ function saveHistorialPrecios(historial) {
 function getSavedLists() {
     if (!currentUser) return [];
     try {
-        let data = localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY));
-        let listas = data ? JSON.parse(data) : [];
-        if (listas.length === 0 && firebaseEnabled()) {
+        if (savedListsCache === null) {
+            let data = localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY));
+            savedListsCache = data ? JSON.parse(data) : [];
+        }
+        if (savedListsCache.length === 0 && firebaseEnabled()) {
             firebaseGetUserDoc('listasGuardadas').then(remote => {
                 if (Array.isArray(remote)) {
+                    savedListsCache = remote;
                     localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(remote));
                 }
             });
         }
-        return listas;
+        return savedListsCache;
     } catch (e) {
+        savedListsCache = [];
         console.warn('Error leyendo listas guardadas de localStorage:', e);
         return [];
     }
 }
 
 function saveSavedLists(listas) {
+    savedListsCache = listas;
     localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(listas));
     syncToFirebase();
 }
@@ -568,10 +581,10 @@ function actualizarDatalists() {
     const shoppingDatalist = document.getElementById('shopping-names');
     const productDatalist = document.getElementById('product-names');
     if (shoppingDatalist) {
-        shoppingDatalist.innerHTML = nombres.map(n => `<option value="${n}">`).join('');
+        shoppingDatalist.innerHTML = nombres.map(n => `<option value="${escapeHtml(n)}">`).join('');
     }
     if (productDatalist) {
-        productDatalist.innerHTML = nombres.map(n => `<option value="${n}">`).join('');
+        productDatalist.innerHTML = nombres.map(n => `<option value="${escapeHtml(n)}">`).join('');
     }
 }
 
@@ -807,7 +820,7 @@ function getCantidadRegistrosUsuario(username) {
 }
 
 function getSavedListsForUser(username) {
-    const data = localStorage.getItem('despensaListasGuardadas_' + username);
+    const data = localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY, username));
     return data ? JSON.parse(data) : [];
 }
 
@@ -855,6 +868,7 @@ function habilitarControles() {
 async function nuevaDespensa() {
     finalizado = false;
     setFinalizado(false);
+    productosCache = null;
     localStorage.removeItem(getUserKey(BASE_STORAGE_KEY));
     habilitarControles();
     ocultarBotonNuevaDespensa();
