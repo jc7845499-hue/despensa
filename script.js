@@ -13,6 +13,10 @@ let historialPreciosCache = null;
 let savedListsCache = null;
 let isRegisterMode = false;
 let changePasswordTargetUser = null;
+let firebaseProductosSynced = false;
+let firebaseHistorialSynced = false;
+let firebaseListasSynced = false;
+let firebaseFinalizadoSynced = false;
 
 function getUserKey(baseKey, username) {
     const user = username || currentUser;
@@ -101,6 +105,10 @@ function initUserContext() {
         productosCache = null;
         historialPreciosCache = null;
         savedListsCache = null;
+        firebaseProductosSynced = false;
+        firebaseHistorialSynced = false;
+        firebaseListasSynced = false;
+        firebaseFinalizadoSynced = false;
         finalizado = getFinalizado();
         return true;
     }
@@ -198,6 +206,10 @@ function doLogout() {
         productosCache = null;
         historialPreciosCache = null;
         savedListsCache = null;
+        firebaseProductosSynced = false;
+        firebaseHistorialSynced = false;
+        firebaseListasSynced = false;
+        firebaseFinalizadoSynced = false;
         habilitarControles();
         ocultarBotonNuevaDespensa();
         limpiarInputs();
@@ -308,6 +320,10 @@ async function doLogin(username, password) {
         productosCache = null;
         historialPreciosCache = null;
         savedListsCache = null;
+        firebaseProductosSynced = false;
+        firebaseHistorialSynced = false;
+        firebaseListasSynced = false;
+        firebaseFinalizadoSynced = false;
         finalizado = getFinalizado();
         try {
             await syncFromFirebase();
@@ -356,6 +372,10 @@ async function doRegister(username, password) {
         productosCache = null;
         historialPreciosCache = null;
         savedListsCache = null;
+        firebaseProductosSynced = false;
+        firebaseHistorialSynced = false;
+        firebaseListasSynced = false;
+        firebaseFinalizadoSynced = false;
         finalizado = getFinalizado();
         try {
             await syncFromFirebase();
@@ -538,17 +558,30 @@ async function syncFromFirebase() {
         if (docSnap.exists()) {
             const data = docSnap.data();
             if (data.productos !== undefined) {
-                localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(data.productos));
+                productosCache = Array.isArray(data.productos) ? data.productos : [];
+                localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(productosCache));
+                firebaseProductosSynced = true;
             }
             if (data.historialPrecios !== undefined) {
-                localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(data.historialPrecios));
+                historialPreciosCache = data.historialPrecios && typeof data.historialPrecios === 'object' ? data.historialPrecios : {};
+                localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(historialPreciosCache));
+                firebaseHistorialSynced = true;
             }
             if (data.listasGuardadas !== undefined) {
-                localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(data.listasGuardadas));
+                savedListsCache = Array.isArray(data.listasGuardadas) ? data.listasGuardadas : [];
+                localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(savedListsCache));
+                firebaseListasSynced = true;
             }
             if (data.finalizado !== undefined) {
-                localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), data.finalizado ? 'true' : 'false');
+                const val = data.finalizado ? 'true' : 'false';
+                localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), val);
+                firebaseFinalizadoSynced = true;
             }
+        } else {
+            firebaseProductosSynced = true;
+            firebaseHistorialSynced = true;
+            firebaseListasSynced = true;
+            firebaseFinalizadoSynced = true;
         }
     } catch (e) {
         console.warn('Error sincronizando desde Firebase:', e);
@@ -563,7 +596,8 @@ function getProductos() {
             let data = localStorage.getItem(key);
             productosCache = data ? JSON.parse(data) : [];
         }
-        if (productosCache.length === 0 && firebaseEnabled()) {
+        if (productosCache.length === 0 && firebaseEnabled() && !firebaseProductosSynced) {
+            firebaseProductosSynced = true;
             firebaseGetUserDoc('productos').then(remote => {
                 if (Array.isArray(remote)) {
                     if (productosCache.length === 0) {
@@ -622,7 +656,8 @@ function getHistorialPrecios() {
             let data = localStorage.getItem(getUserKey(BASE_PRICE_HISTORY_KEY));
             historialPreciosCache = data ? JSON.parse(data) : {};
         }
-        if (Object.keys(historialPreciosCache).length === 0 && firebaseEnabled()) {
+        if (Object.keys(historialPreciosCache).length === 0 && firebaseEnabled() && !firebaseHistorialSynced) {
+            firebaseHistorialSynced = true;
             firebaseGetUserDoc('historialPrecios').then(remote => {
                 if (remote && typeof remote === 'object') {
                     if (Object.keys(historialPreciosCache).length === 0) {
@@ -653,7 +688,8 @@ function getSavedLists() {
             let data = localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY));
             savedListsCache = data ? JSON.parse(data) : [];
         }
-        if (savedListsCache.length === 0 && firebaseEnabled()) {
+        if (savedListsCache.length === 0 && firebaseEnabled() && !firebaseListasSynced) {
+            firebaseListasSynced = true;
             firebaseGetUserDoc('listasGuardadas').then(remote => {
                 if (Array.isArray(remote)) {
                     if (savedListsCache.length === 0) {
@@ -681,7 +717,8 @@ function getFinalizado() {
     if (!currentUser) return false;
     try {
         let val = localStorage.getItem(getUserKey(BASE_FINALIZADO_KEY));
-        if (val === null && firebaseEnabled()) {
+        if (val === null && firebaseEnabled() && !firebaseFinalizadoSynced) {
+            firebaseFinalizadoSynced = true;
             firebaseGetUserDoc('finalizado').then(remote => {
                 if (remote !== null && remote !== undefined) {
                     if (localStorage.getItem(getUserKey(BASE_FINALIZADO_KEY)) === null) {
@@ -1080,6 +1117,12 @@ async function nuevaDespensa() {
     finalizado = false;
     setFinalizado(false);
     productosCache = null;
+    historialPreciosCache = null;
+    savedListsCache = null;
+    firebaseProductosSynced = false;
+    firebaseHistorialSynced = false;
+    firebaseListasSynced = false;
+    firebaseFinalizadoSynced = false;
     localStorage.removeItem(getUserKey(BASE_STORAGE_KEY));
     habilitarControles();
     ocultarBotonNuevaDespensa();
