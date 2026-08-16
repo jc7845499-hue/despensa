@@ -320,10 +320,7 @@ function doLogout() {
     const resumenModal = document.getElementById('resumen-modal');
     if (resumenModal) resumenModal.style.display = 'none';
     showLoginScreen();
-    console.log('Logout completado');
 }
-
-console.log('doLogout cargado:', typeof doLogout);
 
 function showMessage(msg, type) {
     const msgEl = document.getElementById('message');
@@ -371,38 +368,25 @@ async function firebaseSetUserDoc(field, value) {
 }
 
 async function syncFromFirebase() {
-    if (!firebaseEnabled()) {
-        console.log('syncFromFirebase: Firebase no habilitado');
-        return;
-    }
+    if (!firebaseEnabled()) return;
     try {
-        console.log('Sincronizando datos desde Firebase para:', currentUser);
         const db = window.firebaseDb;
         const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
-        console.log('Intentando leer documento:', docRef.path);
         const docSnap = await window.firebaseSdk.getDoc(docRef);
-        console.log('Documento leído, existe:', docSnap.exists());
         if (docSnap.exists()) {
             const data = docSnap.data();
-            console.log('Datos recibidos desde Firebase:', data);
             if (data.productos !== undefined) {
                 localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(data.productos));
-                console.log('Productos actualizados desde Firebase');
             }
             if (data.historialPrecios !== undefined) {
                 localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(data.historialPrecios));
-                console.log('Historial de precios actualizado desde Firebase');
             }
             if (data.listasGuardadas !== undefined) {
                 localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(data.listasGuardadas));
-                console.log('Listas guardadas actualizadas desde Firebase');
             }
             if (data.finalizado !== undefined) {
                 localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), data.finalizado ? 'true' : 'false');
-                console.log('Estado finalizado actualizado desde Firebase:', data.finalizado);
             }
-        } else {
-            console.log('No hay datos en Firebase para este usuario');
         }
     } catch (e) {
         console.warn('Error sincronizando desde Firebase:', e);
@@ -411,18 +395,15 @@ async function syncFromFirebase() {
 
 async function syncToFirebase() {
     if (!firebaseEnabled()) {
-        console.log('syncToFirebase: Firebase no habilitado');
         return;
     }
     try {
-        console.log('Sincronizando datos a Firebase para:', currentUser);
         const productos = getProductos();
         const historial = getHistorialPrecios();
         const listas = getSavedLists();
         const finalizadoVal = getFinalizado();
         const db = window.firebaseDb;
         const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
-        console.log('Intentando escribir documento:', docRef.path);
         await window.firebaseSdk.setDoc(docRef, {
             productos,
             historialPrecios: historial,
@@ -430,7 +411,6 @@ async function syncToFirebase() {
             finalizado: finalizadoVal,
             updatedAt: window.firebaseSdk.serverTimestamp()
         }, { merge: true });
-        console.log('Datos sincronizados a Firebase correctamente');
     } catch (e) {
         console.warn('Error sincronizando a Firebase:', e);
     }
@@ -442,7 +422,6 @@ function getProductos() {
         const key = getUserKey(BASE_STORAGE_KEY);
         let data = localStorage.getItem(key);
         let productos = data ? JSON.parse(data) : [];
-        console.log('getProductos: leyendo clave:', key, 'productos:', productos.length);
         if (productos.length === 0 && firebaseEnabled()) {
             firebaseGetUserDoc('productos').then(remote => {
                 if (Array.isArray(remote)) {
@@ -461,9 +440,30 @@ function getProductos() {
 
 function saveProductos(productos) {
     const key = getUserKey(BASE_STORAGE_KEY);
-    console.log('saveProductos: guardando en localStorage con clave:', key, 'productos:', productos.length);
     localStorage.setItem(key, JSON.stringify(productos));
     syncToFirebase();
+}
+
+async function syncToFirebase() {
+    if (!firebaseEnabled()) return;
+    try {
+        const key = getUserKey(BASE_STORAGE_KEY);
+        const productos = JSON.parse(localStorage.getItem(key) || '[]');
+        const historial = JSON.parse(localStorage.getItem(getUserKey(BASE_PRICE_HISTORY_KEY)) || '{}');
+        const listas = JSON.parse(localStorage.getItem(getUserKey(BASE_SAVED_LISTS_KEY)) || '[]');
+        const finalizadoVal = localStorage.getItem(getUserKey(BASE_FINALIZADO_KEY)) === 'true';
+        const db = window.firebaseDb;
+        const docRef = window.firebaseSdk.doc(db, 'despensa', currentUser);
+        await window.firebaseSdk.setDoc(docRef, {
+            productos,
+            historialPrecios: historial,
+            listasGuardadas: listas,
+            finalizado: finalizadoVal,
+            updatedAt: window.firebaseSdk.serverTimestamp()
+        }, { merge: true });
+    } catch (e) {
+        console.warn('Error sincronizando a Firebase:', e);
+    }
 }
 
 function getHistorialPrecios() {
@@ -1033,16 +1033,16 @@ function agregarProducto() {
             pendiente: false
         });
     }
-    console.log('Agregando producto, total productos:', productos.length);
+    const esNuevo = idx === -1;
     saveProductos(productos);
-    console.log('Producto guardado, llamando renderProductos');
     renderProductos();
-    console.log('renderProductos ejecutado');
 
     nameInput.value = '';
     priceInput.value = '';
     qtyInput.value = '1';
-    actualizarDatalists();
+    if (esNuevo) {
+        actualizarDatalists();
+    }
     showMessage(mensajeCambio, cambio !== 0 ? (cambio > 0 ? 'error' : 'success') : 'success');
 }
 
@@ -1066,14 +1066,9 @@ function confirmarEliminarProducto(id) {
 }
 
 function renderProductos() {
-    console.log('renderProductos llamado');
     const productos = getProductos();
-    console.log('Productos a renderizar:', productos.length);
     const listEl = document.getElementById('product-list');
-    if (!listEl) {
-        console.warn('renderProductos: product-list no encontrado');
-        return;
-    }
+    if (!listEl) return;
     listEl.innerHTML = '';
 
     if (productos.length === 0) {
@@ -1666,7 +1661,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const addBtn = document.getElementById('add-btn');
     if (addBtn) {
         addBtn.addEventListener('click', () => {
-            console.log('Botón agregar producto clickeado');
             agregarProducto();
         });
     }
@@ -1695,7 +1689,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const loginSubmitBtn = document.getElementById('login-submit');
     if (loginSubmitBtn) {
         loginSubmitBtn.addEventListener('click', (e) => {
-            console.log('Botón de login clickeado');
             doLogin();
         });
     }
@@ -1704,7 +1697,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (loginPasswordInput) {
         loginPasswordInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                console.log('Enter presionado en password, ejecutando login');
                 doLogin();
             }
         });
@@ -1713,25 +1705,19 @@ window.addEventListener('DOMContentLoaded', () => {
     initDevToolsProtection();
 
     initFirebase().then(() => {
-        console.log('Firebase listo, iniciando migración de usuarios...');
         return migratePlaintextUsers();
     }).then(() => {
-        console.log('Migración completada, sincronizando usuarios...');
         return syncUsuariosFromFirebase();
     }).then(() => {
-        console.log('Sincronización completada, creando admin...');
         return crearUsuarioAdminSiNoExiste();
     }).then(() => {
-        console.log('Admin creado, sincronizando usuarios nuevamente...');
         return syncUsuariosFromFirebase();
     }).then(() => {
         const loggedIn = initUserContext();
         if (loggedIn && currentUser) {
-            console.log('Usuario ya logueado:', currentUser, '- sincronizando datos desde Firebase...');
             return syncFromFirebase();
         }
     }).then(() => {
-        console.log('Mostrando login screen');
         showLoginScreen();
     }).catch((error) => {
         console.error('Error en inicialización:', error);
