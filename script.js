@@ -1122,18 +1122,6 @@ function getPrecioAnterior(nombre) {
     return null;
 }
 
-function handleShoppingKeypress(e) {
-    if (e.key === 'Enter') {
-        setTimeout(() => agregarDesdeShopping(), 50);
-    }
-}
-
-function handleProductKeypress(e) {
-    if (e.key === 'Enter') {
-        setTimeout(() => agregarProducto(), 50);
-    }
-}
-
 function agregarDesdeShopping() {
     if (finalizado) {
         showMessage('El registro ha sido finalizado. Crea una nueva despensa.', 'error');
@@ -1918,29 +1906,49 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     const productNameInput = document.getElementById('product-name');
-    if (productNameInput) {
-        productNameInput.addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') {
-                const productPriceInput = document.getElementById('product-price');
-                if (productPriceInput) productPriceInput.focus();
+    const productPriceInput = document.getElementById('product-price');
+    if (productNameInput && productPriceInput) {
+        productNameInput.addEventListener('change', () => {
+            if (productNameInput.value.trim()) {
+                productPriceInput.focus();
             }
         });
     }
 
-    const productPriceInput = document.getElementById('product-price');
     if (productPriceInput) {
         productPriceInput.addEventListener('keyup', (e) => {
             if (e.key === 'Enter') {
-                setTimeout(() => agregarProducto(), 0);
+                e.preventDefault();
+                agregarProducto();
             }
         });
     }
 
     const shoppingNameInput = document.getElementById('shopping-name');
-    if (shoppingNameInput) {
-        shoppingNameInput.addEventListener('keyup', (e) => {
+    const shoppingQtyInput = document.getElementById('shopping-qty');
+    const shoppingApproxInput = document.getElementById('shopping-approx-price');
+    if (shoppingNameInput && shoppingQtyInput) {
+        shoppingNameInput.addEventListener('change', () => {
+            if (shoppingNameInput.value.trim()) {
+                shoppingQtyInput.focus();
+            }
+        });
+    }
+
+    if (shoppingQtyInput) {
+        shoppingQtyInput.addEventListener('keyup', (e) => {
             if (e.key === 'Enter') {
-                setTimeout(() => agregarDesdeShopping(), 0);
+                e.preventDefault();
+                agregarDesdeShopping();
+            }
+        });
+    }
+
+    if (shoppingApproxInput) {
+        shoppingApproxInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                agregarDesdeShopping();
             }
         });
     }
