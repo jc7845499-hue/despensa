@@ -11,6 +11,8 @@ let currentUser = null;
 let productosCache = null;
 let historialPreciosCache = null;
 let savedListsCache = null;
+let isRegisterMode = false;
+let changePasswordTargetUser = null;
 
 function getUserKey(baseKey, username) {
     const user = username || currentUser;
@@ -168,134 +170,8 @@ async function migratePlaintextUsers() {
     }
 }
 
-async function doLogin() {
-    console.log('doLogin iniciado');
-    const usernameInput = document.getElementById('login-username');
-    const passwordInput = document.getElementById('login-password');
-    const errorEl = document.getElementById('login-error');
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value.trim();
-
-    console.log('Intentando login con usuario:', username);
-
-    if (!username || !password) {
-        errorEl.textContent = 'Ingrese usuario y contraseña';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (typeof localStorage === 'undefined') {
-        errorEl.textContent = 'El navegador no soporta almacenamiento local';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    const usuarios = getUsuarios();
-    console.log('Usuarios en localStorage:', usuarios.map(u => u.username));
-    const usuario = usuarios.find(u => u.username === username);
-
-    if (!usuario || !usuario.salt || !usuario.hash) {
-        errorEl.textContent = 'Usuario o contraseña incorrectos';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    try {
-        const hash = await hashPassword(password, usuario.salt);
-        console.log('Hash generado:', hash);
-        console.log('Hash almacenado:', usuario.hash);
-        if (hash !== usuario.hash) {
-            errorEl.textContent = 'Usuario o contraseña incorrectos';
-            errorEl.style.display = 'block';
-            return;
-        }
-
-        setUsuarioActual(username);
-        currentUser = username;
-        productosCache = null;
-        historialPreciosCache = null;
-        savedListsCache = null;
-        finalizado = getFinalizado();
-        try {
-            await syncFromFirebase();
-        } catch (e) {
-            console.warn('Error sincronizando desde Firebase en login:', e);
-        }
-        console.log('Ocultando login, mostrando app');
-        hideLoginScreen();
-        if (!esAdmin()) {
-            actualizarDatalists();
-            renderProductos();
-            actualizarBotonUsuario();
-        }
-    } catch (error) {
-        console.error('Error en login:', error);
-        errorEl.textContent = 'Error al iniciar sesión';
-        errorEl.style.display = 'block';
-    }
-}
-
-async function doRegister() {
-    const usernameInput = document.getElementById('login-username');
-    const passwordInput = document.getElementById('login-password');
-    const errorEl = document.getElementById('login-error');
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value.trim();
-
-    if (!username || !password) {
-        errorEl.textContent = 'Ingrese usuario y contraseña';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (password.length < 4) {
-        errorEl.textContent = 'La contraseña debe tener al menos 4 caracteres';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (typeof localStorage === 'undefined') {
-        errorEl.textContent = 'El navegador no soporta almacenamiento local';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    const usuarios = getUsuarios();
-    if (usuarios.some(u => u.username === username)) {
-        errorEl.textContent = 'El usuario ya existe';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    try {
-        const salt = await generateSalt();
-        const hash = await hashPassword(password, salt);
-        usuarios.push({ username, salt, hash, rol: 'usuario' });
-        saveUsuarios(usuarios);
-
-        setUsuarioActual(username);
-        currentUser = username;
-        productosCache = null;
-        historialPreciosCache = null;
-        savedListsCache = null;
-        finalizado = getFinalizado();
-        try {
-            await syncFromFirebase();
-        } catch (e) {
-            console.warn('Error sincronizando desde Firebase en registro:', e);
-        }
-        hideLoginScreen();
-        if (!esAdmin()) {
-            actualizarDatalists();
-            renderProductos();
-            actualizarBotonUsuario();
-        }
-    } catch (error) {
-        console.error('Error en registro:', error);
-        const errorMsg = error && error.message ? error.message : 'Error desconocido';
-        errorEl.textContent = 'Error al crear la cuenta: ' + errorMsg;
-        errorEl.style.display = 'block';
-    }
+function handleLoginSubmitWrapper() {
+    handleLoginSubmit();
 }
 
 function showLogoutConfirm() {
@@ -341,6 +217,8 @@ function doLogout() {
     if (savedListsModal) savedListsModal.style.display = 'none';
     const resumenModal = document.getElementById('resumen-modal');
     if (resumenModal) resumenModal.style.display = 'none';
+    const changePassModal = document.getElementById('change-password-modal');
+    if (changePassModal) changePassModal.style.display = 'none';
     showLoginScreen();
 }
 
@@ -353,6 +231,260 @@ function showMessage(msg, type) {
     msgEl.className = `message ${type}`;
     msgEl.style.display = 'block';
     setTimeout(() => msgEl.style.display = 'none', 5000);
+}
+
+function toggleRegisterMode() {
+    isRegisterMode = !isRegisterMode;
+    const title = document.getElementById('login-title');
+    const submitBtn = document.getElementById('login-submit');
+    const toggleBtn = document.getElementById('login-toggle-btn');
+    const confirmGroup = document.getElementById('login-confirm-group');
+    const errorEl = document.getElementById('login-error');
+    if (isRegisterMode) {
+        title.textContent = 'Crear Cuenta';
+        submitBtn.textContent = 'Crear Cuenta';
+        toggleBtn.textContent = 'Ya tengo cuenta';
+        confirmGroup.style.display = 'block';
+    } else {
+        title.textContent = 'Iniciar Sesión';
+        submitBtn.textContent = 'Iniciar Sesión';
+        toggleBtn.textContent = 'Crear Cuenta';
+        confirmGroup.style.display = 'none';
+    }
+    errorEl.style.display = 'none';
+}
+
+function handleLoginKeydown(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        handleLoginSubmit();
+    }
+}
+
+async function handleLoginSubmit() {
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
+    const confirmInput = document.getElementById('login-password-confirm');
+    const errorEl = document.getElementById('login-error');
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+    const confirm = confirmInput ? confirmInput.value.trim() : '';
+
+    if (!username || !password) {
+        errorEl.textContent = 'Ingrese usuario y contraseña';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (isRegisterMode) {
+        if (password !== confirm) {
+            errorEl.textContent = 'Las contraseñas no coinciden';
+            errorEl.style.display = 'block';
+            return;
+        }
+        await doRegister(username, password);
+    } else {
+        await doLogin(username, password);
+    }
+}
+
+async function doLogin(username, password) {
+    console.log('doLogin iniciado');
+    const errorEl = document.getElementById('login-error');
+    if (!username || !password) {
+        errorEl.textContent = 'Ingrese usuario y contraseña';
+        errorEl.style.display = 'block';
+        return;
+    }
+    const usuarios = getUsuarios();
+    const usuario = usuarios.find(u => u.username === username);
+    if (!usuario || !usuario.salt || !usuario.hash) {
+        errorEl.textContent = 'Usuario o contraseña incorrectos';
+        errorEl.style.display = 'block';
+        return;
+    }
+    try {
+        const hash = await hashPassword(password, usuario.salt);
+        if (hash !== usuario.hash) {
+            errorEl.textContent = 'Usuario o contraseña incorrectos';
+            errorEl.style.display = 'block';
+            return;
+        }
+        setUsuarioActual(username);
+        currentUser = username;
+        productosCache = null;
+        historialPreciosCache = null;
+        savedListsCache = null;
+        finalizado = getFinalizado();
+        try {
+            await syncFromFirebase();
+        } catch (e) {
+            console.warn('Error sincronizando desde Firebase en login:', e);
+        }
+        hideLoginScreen();
+        if (!esAdmin()) {
+            actualizarDatalists();
+            renderProductos();
+            actualizarBotonUsuario();
+        }
+    } catch (error) {
+        console.error('Error en login:', error);
+        errorEl.textContent = 'Error al iniciar sesión';
+        errorEl.style.display = 'block';
+    }
+}
+
+async function doRegister(username, password) {
+    const errorEl = document.getElementById('login-error');
+    if (!username || !password) {
+        errorEl.textContent = 'Ingrese usuario y contraseña';
+        errorEl.style.display = 'block';
+        return;
+    }
+    if (password.length < 4) {
+        errorEl.textContent = 'La contraseña debe tener al menos 4 caracteres';
+        errorEl.style.display = 'block';
+        return;
+    }
+    const usuarios = getUsuarios();
+    if (usuarios.some(u => u.username === username)) {
+        errorEl.textContent = 'El usuario ya existe';
+        errorEl.style.display = 'block';
+        return;
+    }
+    try {
+        const salt = await generateSalt();
+        const hash = await hashPassword(password, salt);
+        usuarios.push({ username, salt, hash, rol: 'usuario' });
+        saveUsuarios(usuarios);
+        setUsuarioActual(username);
+        currentUser = username;
+        productosCache = null;
+        historialPreciosCache = null;
+        savedListsCache = null;
+        finalizado = getFinalizado();
+        try {
+            await syncFromFirebase();
+        } catch (e) {
+            console.warn('Error sincronizando desde Firebase en registro:', e);
+        }
+        hideLoginScreen();
+        if (!esAdmin()) {
+            actualizarDatalists();
+            renderProductos();
+            actualizarBotonUsuario();
+        }
+    } catch (error) {
+        console.error('Error en registro:', error);
+        const errorMsg = error && error.message ? error.message : 'Error desconocido';
+        errorEl.textContent = 'Error al crear la cuenta: ' + errorMsg;
+        errorEl.style.display = 'block';
+    }
+}
+
+function showChangePasswordModal() {
+    const modal = document.getElementById('change-password-modal');
+    const errorEl = document.getElementById('change-password-error');
+    errorEl.style.display = 'none';
+    document.getElementById('change-password-old').value = '';
+    document.getElementById('change-password-new').value = '';
+    document.getElementById('change-password-confirm').value = '';
+    modal.style.display = 'flex';
+}
+
+function closeChangePasswordModal() {
+    const modal = document.getElementById('change-password-modal');
+    if (modal) modal.style.display = 'none';
+    changePasswordTargetUser = null;
+}
+
+function showAdminChangePasswordModal(username) {
+    changePasswordTargetUser = username;
+    const modal = document.getElementById('change-password-modal');
+    const title = document.getElementById('change-password-title');
+    const errorEl = document.getElementById('change-password-error');
+    title.textContent = username === currentUser ? 'Cambiar Mi Contraseña' : `Cambiar Contraseña de ${username}`;
+    errorEl.style.display = 'none';
+    document.getElementById('change-password-old').value = '';
+    document.getElementById('change-password-new').value = '';
+    document.getElementById('change-password-confirm').value = '';
+    if (username === currentUser) {
+        document.getElementById('change-password-old').disabled = false;
+    } else {
+        document.getElementById('change-password-old').disabled = true;
+        document.getElementById('change-password-old').placeholder = 'No requerido para admin';
+    }
+    modal.style.display = 'flex';
+}
+
+async function confirmChangePassword() {
+    const errorEl = document.getElementById('change-password-error');
+    const oldPass = document.getElementById('change-password-old').value.trim();
+    const newPass = document.getElementById('change-password-new').value.trim();
+    const confirmPass = document.getElementById('change-password-confirm').value.trim();
+    const target = changePasswordTargetUser || currentUser;
+
+    if (!newPass || newPass.length < 4) {
+        errorEl.textContent = 'La nueva contraseña debe tener al menos 4 caracteres';
+        errorEl.style.display = 'block';
+        return;
+    }
+    if (newPass !== confirmPass) {
+        errorEl.textContent = 'Las contraseñas no coinciden';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const usuarios = getUsuarios();
+    const usuario = usuarios.find(u => u.username === target);
+    if (!usuario) {
+        errorEl.textContent = 'Usuario no encontrado';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (target !== currentUser) {
+        try {
+            const salt = await generateSalt();
+            const hash = await hashPassword(newPass, salt);
+            usuario.salt = salt;
+            usuario.hash = hash;
+            await saveUsuarios(usuarios);
+            showMessage(`Contraseña de "${target}" actualizada`, 'success');
+            closeChangePasswordModal();
+        } catch (error) {
+            console.error('Error cambiando contraseña desde admin:', error);
+            errorEl.textContent = 'Error al cambiar la contraseña';
+            errorEl.style.display = 'block';
+        }
+        return;
+    }
+
+    if (!oldPass) {
+        errorEl.textContent = 'Ingresa tu contraseña actual';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        const hash = await hashPassword(oldPass, usuario.salt);
+        if (hash !== usuario.hash) {
+            errorEl.textContent = 'Contraseña actual incorrecta';
+            errorEl.style.display = 'block';
+            return;
+        }
+        const salt = await generateSalt();
+        const newHash = await hashPassword(newPass, salt);
+        usuario.salt = salt;
+        usuario.hash = newHash;
+        await saveUsuarios(usuarios);
+        showMessage('Contraseña actualizada correctamente', 'success');
+        closeChangePasswordModal();
+    } catch (error) {
+        console.error('Error cambiando contraseña:', error);
+        errorEl.textContent = 'Error al cambiar la contraseña';
+        errorEl.style.display = 'block';
+    }
 }
 
 function firebaseEnabled() {
@@ -619,14 +751,17 @@ function actualizarBotonUsuario() {
             return;
         }
         const btnUsuario = document.getElementById('btn-usuario');
+        const btnCambiarPass = document.getElementById('btn-cambiar-pass');
         const btnNuevaDespensa = document.getElementById('new-pantry-btn');
-        if (btnUsuario && btnNuevaDespensa) {
+        if (btnUsuario && btnCambiarPass && btnNuevaDespensa) {
             if (currentUser) {
                 btnUsuario.style.display = 'inline-block';
                 btnUsuario.textContent = 'Cerrar Sesión';
+                btnCambiarPass.style.display = 'inline-block';
                 btnNuevaDespensa.style.display = finalizado ? 'inline-block' : 'none';
             } else {
                 btnUsuario.style.display = 'none';
+                btnCambiarPass.style.display = 'none';
                 btnNuevaDespensa.style.display = 'none';
             }
         }
@@ -741,9 +876,11 @@ async function crearUsuarioDesdeAdmin() {
     }
     const usernameInput = document.getElementById('admin-new-username');
     const passwordInput = document.getElementById('admin-new-password');
+    const confirmInput = document.getElementById('admin-new-password-confirm');
     const errorEl = document.getElementById('admin-create-error');
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
+    const confirm = confirmInput ? confirmInput.value.trim() : '';
 
     if (!username || !password) {
         errorEl.textContent = 'Ingrese usuario y contraseña';
@@ -753,6 +890,12 @@ async function crearUsuarioDesdeAdmin() {
 
     if (password.length < 4) {
         errorEl.textContent = 'La contraseña debe tener al menos 4 caracteres';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (password !== confirm) {
+        errorEl.textContent = 'Las contraseñas no coinciden';
         errorEl.style.display = 'block';
         return;
     }
@@ -771,6 +914,7 @@ async function crearUsuarioDesdeAdmin() {
         saveUsuarios(usuarios);
         usernameInput.value = '';
         passwordInput.value = '';
+        if (confirmInput) confirmInput.value = '';
         errorEl.style.display = 'none';
         renderizarPanelAdmin();
         showMessage(`Usuario "${username}" creado`, 'success');
@@ -799,7 +943,7 @@ function renderizarPanelAdmin() {
     table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 10px;';
     const headerRow = document.createElement('tr');
     headerRow.style.cssText = 'border-bottom: 2px solid #1a73e8;';
-    ['Usuario', 'Rol', 'Registros', 'Acción'].forEach(text => {
+    ['Usuario', 'Rol', 'Registros', 'Acción', 'Contraseña'].forEach(text => {
         const th = document.createElement('th');
         th.style.cssText = 'padding: 8px; text-align: center; border-right: 1px solid #ddd;';
         th.textContent = text;
@@ -844,6 +988,22 @@ function renderizarPanelAdmin() {
             actionCell.style.color = '#999';
         }
         row.appendChild(actionCell);
+        const changePassCell = document.createElement('td');
+        changePassCell.style.cssText = 'padding: 8px; text-align: center;';
+        if (!esAdminUser) {
+            const btnChangePass = document.createElement('button');
+            btnChangePass.className = 'outline small';
+            btnChangePass.textContent = 'Cambiar';
+            btnChangePass.style.cssText = 'padding: 6px 12px; font-size: 12px;';
+            btnChangePass.onclick = () => {
+                showAdminChangePasswordModal(u.username);
+            };
+            changePassCell.appendChild(btnChangePass);
+        } else {
+            changePassCell.textContent = '-';
+            changePassCell.style.color = '#999';
+        }
+        row.appendChild(changePassCell);
         table.appendChild(row);
     });
     container.appendChild(table);
@@ -1753,7 +1913,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const loginSubmitBtn = document.getElementById('login-submit');
     if (loginSubmitBtn) {
         loginSubmitBtn.addEventListener('click', (e) => {
-            doLogin();
+            handleLoginSubmit();
         });
     }
 
@@ -1761,7 +1921,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (loginPasswordInput) {
         loginPasswordInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                doLogin();
+                handleLoginSubmit();
             }
         });
     }
