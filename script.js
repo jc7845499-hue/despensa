@@ -1908,14 +1908,28 @@ window.addEventListener('DOMContentLoaded', () => {
     const productNameInput = document.getElementById('product-name');
     const productPriceInput = document.getElementById('product-price');
     if (productNameInput && productPriceInput) {
-        productNameInput.addEventListener('input', () => {
+        productNameInput.addEventListener('change', () => {
             const value = productNameInput.value.trim();
             if (!value) return;
             const datalist = document.getElementById('product-names');
             if (!datalist) return;
             const options = Array.from(datalist.options).map(opt => opt.value);
             if (options.includes(value)) {
-                setTimeout(() => productPriceInput.focus(), 0);
+                setTimeout(() => productPriceInput.focus(), 50);
+            }
+        });
+        productNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                setTimeout(() => {
+                    const value = productNameInput.value.trim();
+                    if (!value) return;
+                    const datalist = document.getElementById('product-names');
+                    if (!datalist) return;
+                    const options = Array.from(datalist.options).map(opt => opt.value);
+                    if (options.includes(value)) {
+                        productPriceInput.focus();
+                    }
+                }, 0);
             }
         });
     }
@@ -1932,14 +1946,28 @@ window.addEventListener('DOMContentLoaded', () => {
     const shoppingNameInput = document.getElementById('shopping-name');
     const shoppingQtyInput = document.getElementById('shopping-qty');
     if (shoppingNameInput && shoppingQtyInput) {
-        shoppingNameInput.addEventListener('input', () => {
+        shoppingNameInput.addEventListener('change', () => {
             const value = shoppingNameInput.value.trim();
             if (!value) return;
             const datalist = document.getElementById('shopping-names');
             if (!datalist) return;
             const options = Array.from(datalist.options).map(opt => opt.value);
             if (options.includes(value)) {
-                setTimeout(() => shoppingQtyInput.focus(), 0);
+                setTimeout(() => shoppingQtyInput.focus(), 50);
+            }
+        });
+        shoppingNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                setTimeout(() => {
+                    const value = shoppingNameInput.value.trim();
+                    if (!value) return;
+                    const datalist = document.getElementById('shopping-names');
+                    if (!datalist) return;
+                    const options = Array.from(datalist.options).map(opt => opt.value);
+                    if (options.includes(value)) {
+                        shoppingQtyInput.focus();
+                    }
+                }, 0);
             }
         });
     }
