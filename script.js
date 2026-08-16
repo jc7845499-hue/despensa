@@ -439,12 +439,14 @@ async function syncToFirebase() {
 function getProductos() {
     if (!currentUser) return [];
     try {
-        let data = localStorage.getItem(getUserKey(BASE_STORAGE_KEY));
+        const key = getUserKey(BASE_STORAGE_KEY);
+        let data = localStorage.getItem(key);
         let productos = data ? JSON.parse(data) : [];
+        console.log('getProductos: leyendo clave:', key, 'productos:', productos.length);
         if (productos.length === 0 && firebaseEnabled()) {
             firebaseGetUserDoc('productos').then(remote => {
                 if (Array.isArray(remote)) {
-                    localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(remote));
+                    localStorage.setItem(key, JSON.stringify(remote));
                     renderProductos();
                     actualizarDatalists();
                 }
@@ -458,7 +460,9 @@ function getProductos() {
 }
 
 function saveProductos(productos) {
-    localStorage.setItem(getUserKey(BASE_STORAGE_KEY), JSON.stringify(productos));
+    const key = getUserKey(BASE_STORAGE_KEY);
+    console.log('saveProductos: guardando en localStorage con clave:', key, 'productos:', productos.length);
+    localStorage.setItem(key, JSON.stringify(productos));
     syncToFirebase();
 }
 
@@ -1029,13 +1033,16 @@ function agregarProducto() {
             pendiente: false
         });
     }
+    console.log('Agregando producto, total productos:', productos.length);
     saveProductos(productos);
+    console.log('Producto guardado, llamando renderProductos');
+    renderProductos();
+    console.log('renderProductos ejecutado');
 
     nameInput.value = '';
     priceInput.value = '';
     qtyInput.value = '1';
     actualizarDatalists();
-    renderProductos();
     showMessage(mensajeCambio, cambio !== 0 ? (cambio > 0 ? 'error' : 'success') : 'success');
 }
 
@@ -1059,8 +1066,14 @@ function confirmarEliminarProducto(id) {
 }
 
 function renderProductos() {
+    console.log('renderProductos llamado');
     const productos = getProductos();
+    console.log('Productos a renderizar:', productos.length);
     const listEl = document.getElementById('product-list');
+    if (!listEl) {
+        console.warn('renderProductos: product-list no encontrado');
+        return;
+    }
     listEl.innerHTML = '';
 
     if (productos.length === 0) {
@@ -1652,7 +1665,10 @@ async function initFirebase() {
 window.addEventListener('DOMContentLoaded', () => {
     const addBtn = document.getElementById('add-btn');
     if (addBtn) {
-        addBtn.addEventListener('click', agregarProducto);
+        addBtn.addEventListener('click', () => {
+            console.log('Botón agregar producto clickeado');
+            agregarProducto();
+        });
     }
 
     const productNameInput = document.getElementById('product-name');
