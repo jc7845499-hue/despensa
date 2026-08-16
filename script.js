@@ -1124,13 +1124,13 @@ function getPrecioAnterior(nombre) {
 
 function handleShoppingKeypress(e) {
     if (e.key === 'Enter') {
-        setTimeout(() => agregarDesdeShopping(), 0);
+        setTimeout(() => agregarDesdeShopping(), 50);
     }
 }
 
 function handleProductKeypress(e) {
     if (e.key === 'Enter') {
-        setTimeout(() => agregarProducto(), 0);
+        setTimeout(() => agregarProducto(), 50);
     }
 }
 
