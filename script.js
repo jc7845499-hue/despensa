@@ -425,10 +425,12 @@ function getProductos() {
         if (productosCache.length === 0 && firebaseEnabled()) {
             firebaseGetUserDoc('productos').then(remote => {
                 if (Array.isArray(remote)) {
-                    productosCache = remote;
-                    localStorage.setItem(key, JSON.stringify(remote));
-                    renderProductos();
-                    actualizarDatalists();
+                    if (productosCache.length === 0) {
+                        productosCache = remote;
+                        localStorage.setItem(key, JSON.stringify(remote));
+                        renderProductos();
+                        actualizarDatalists();
+                    }
                 }
             });
         }
@@ -479,8 +481,10 @@ function getHistorialPrecios() {
         if (Object.keys(historialPreciosCache).length === 0 && firebaseEnabled()) {
             firebaseGetUserDoc('historialPrecios').then(remote => {
                 if (remote && typeof remote === 'object') {
-                    historialPreciosCache = remote;
-                    localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(remote));
+                    if (Object.keys(historialPreciosCache).length === 0) {
+                        historialPreciosCache = remote;
+                        localStorage.setItem(getUserKey(BASE_PRICE_HISTORY_KEY), JSON.stringify(remote));
+                    }
                 }
             });
         }
@@ -508,8 +512,10 @@ function getSavedLists() {
         if (savedListsCache.length === 0 && firebaseEnabled()) {
             firebaseGetUserDoc('listasGuardadas').then(remote => {
                 if (Array.isArray(remote)) {
-                    savedListsCache = remote;
-                    localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(remote));
+                    if (savedListsCache.length === 0) {
+                        savedListsCache = remote;
+                        localStorage.setItem(getUserKey(BASE_SAVED_LISTS_KEY), JSON.stringify(remote));
+                    }
                 }
             });
         }
@@ -534,7 +540,9 @@ function getFinalizado() {
         if (val === null && firebaseEnabled()) {
             firebaseGetUserDoc('finalizado').then(remote => {
                 if (remote !== null && remote !== undefined) {
-                    localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), remote ? 'true' : 'false');
+                    if (localStorage.getItem(getUserKey(BASE_FINALIZADO_KEY)) === null) {
+                        localStorage.setItem(getUserKey(BASE_FINALIZADO_KEY), remote ? 'true' : 'false');
+                    }
                 }
             });
         }
