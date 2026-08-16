@@ -26,7 +26,7 @@
             <p style="font-size: 13px; color: #777; margin-bottom: 12px;">Define los productos que comprarás, cuántas unidades necesitas y el precio aproximado por unidad.</p>
             <div id="shopping-inputs">
                 <div class="shopping-item">
-                     <input type="text" id="shopping-name" placeholder="Nombre del producto..." list="shopping-names" onkeydown="handleShoppingKeypress(event)">
+                     <input type="text" id="shopping-name" placeholder="Nombre del producto..." list="shopping-names">
                      <input type="number" id="shopping-qty" placeholder="Cant." min="1" value="1" onkeydown="handleShoppingKeypress(event)">
                      <input type="number" id="shopping-approx-price" placeholder="Precio aprox. ($)" step="0.01" min="0" onkeydown="handleShoppingKeypress(event)">
                     <button onclick="agregarDesdeShopping()" style="width: auto; padding: 10px 12px;">+</button>
@@ -39,7 +39,7 @@
             <h2>Registrar Precio por Unidad</h2>
             <div class="form-group">
                 <label for="product-name">Nombre del Producto</label>
-                 <input type="text" id="product-name" placeholder="Ej: Arroz, Leche, Pan..." list="product-names" onkeydown="handleProductKeypress(event)">
+                  <input type="text" id="product-name" placeholder="Ej: Arroz, Leche, Pan..." list="product-names">
             </div>
             <div class="form-group">
                 <label for="product-price">Precio por Unidad ($)</label>
@@ -78,7 +78,10 @@
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1 style="margin-bottom: 0;">Panel de Administración</h1>
-            <button class="small outline" onclick="showLogoutConfirm()">Cerrar Sesión</button>
+            <div>
+                <button class="small outline" onclick="showAdminChangePasswordModal()" style="margin-right: 8px;">Cambiar Mi Contraseña</button>
+                <button class="small outline" onclick="showLogoutConfirm()">Cerrar Sesión</button>
+            </div>
         </div>
 
         <div class="form-section">
@@ -113,19 +116,19 @@
             <h2 id="login-title">Iniciar Sesión</h2>
             <div class="form-group">
                 <label for="login-username">Usuario</label>
-                 <input type="text" id="login-username" placeholder="Nombre de usuario" onkeydown="if(event.key==='Enter') document.getElementById('login-password').focus()">
+                 <input type="text" id="login-username" placeholder="Nombre de usuario" autocomplete="off">
             </div>
             <div class="form-group">
                 <label for="login-password">Contraseña</label>
                 <div class="password-wrapper">
-                    <input type="password" id="login-password" placeholder="Contraseña" onkeydown="if(event.key==='Enter') handleLoginKeydown(event)">
+                    <input type="password" id="login-password" placeholder="Contraseña">
                     <button type="button" id="toggle-password" class="password-toggle" onclick="togglePassword()">👁</button>
                 </div>
             </div>
             <div class="form-group" id="login-confirm-group" style="display: none;">
                 <label for="login-password-confirm">Confirmar Contraseña</label>
                 <div class="password-wrapper">
-                    <input type="password" id="login-password-confirm" placeholder="Confirma tu contraseña" onkeydown="if(event.key==='Enter') handleLoginKeydown(event)">
+                    <input type="password" id="login-password-confirm" placeholder="Confirma tu contraseña">
                 </div>
             </div>
             <p id="login-error" style="color: #c62828; font-size: 13px; margin-bottom: 10px; display: none;"></p>

@@ -254,13 +254,6 @@ function toggleRegisterMode() {
     errorEl.style.display = 'none';
 }
 
-function handleLoginKeydown(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        handleLoginSubmit();
-    }
-}
-
 async function handleLoginSubmit() {
     const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
@@ -357,6 +350,7 @@ async function doRegister(username, password) {
         const hash = await hashPassword(password, salt);
         usuarios.push({ username, salt, hash, rol: 'usuario' });
         saveUsuarios(usuarios);
+        await limpiarDatosFirebaseUsuario(username);
         setUsuarioActual(username);
         currentUser = username;
         productosCache = null;
@@ -399,16 +393,17 @@ function closeChangePasswordModal() {
 }
 
 function showAdminChangePasswordModal(username) {
-    changePasswordTargetUser = username;
+    const targetUser = username || currentUser;
+    changePasswordTargetUser = targetUser;
     const modal = document.getElementById('change-password-modal');
     const title = document.getElementById('change-password-title');
     const errorEl = document.getElementById('change-password-error');
-    title.textContent = username === currentUser ? 'Cambiar Mi Contraseña' : `Cambiar Contraseña de ${username}`;
+    title.textContent = targetUser === currentUser ? 'Cambiar Mi Contraseña' : `Cambiar Contraseña de ${targetUser}`;
     errorEl.style.display = 'none';
     document.getElementById('change-password-old').value = '';
     document.getElementById('change-password-new').value = '';
     document.getElementById('change-password-confirm').value = '';
-    if (username === currentUser) {
+    if (targetUser === currentUser) {
         document.getElementById('change-password-old').disabled = false;
     } else {
         document.getElementById('change-password-old').disabled = true;
@@ -838,6 +833,22 @@ function getUsuariosParaAdmin() {
     }));
 }
 
+async function limpiarDatosFirebaseUsuario(username) {
+    if (!firebaseEnabled()) return;
+    try {
+        const db = window.firebaseDb;
+        const docRef = window.firebaseSdk.doc(db, 'despensa', username);
+        await window.firebaseSdk.setDoc(docRef, {
+            productos: [],
+            historialPrecios: {},
+            listasGuardadas: [],
+            finalizado: false
+        });
+    } catch (e) {
+        console.warn('Error limpiando datos de Firebase para usuario:', e);
+    }
+}
+
 async function eliminarUsuarioPorAdmin(username) {
     if (!esAdmin()) {
         showMessage('No tienes permisos de administrador', 'error');
@@ -850,16 +861,13 @@ async function eliminarUsuarioPorAdmin(username) {
     let usuarios = getUsuarios();
     usuarios = usuarios.filter(u => u.username !== username);
     await saveUsuarios(usuarios);
-    if (window.firebaseDb && window.firebaseSdk) {
-        try {
-            const db = window.firebaseDb;
-            const docRef = window.firebaseSdk.doc(db, 'despensa', username);
-            await window.firebaseSdk.deleteDoc(docRef);
-        } catch (e) {
-            console.error('Error eliminando documento de Firebase:', e);
-            showMessage('Usuario eliminado localmente, pero hubo un error al eliminar sus datos en la nube', 'error');
-        }
-    }
+    [
+        getUserKey(BASE_STORAGE_KEY, username),
+        getUserKey(BASE_PRICE_HISTORY_KEY, username),
+        getUserKey(BASE_SAVED_LISTS_KEY, username),
+        getUserKey(BASE_FINALIZADO_KEY, username)
+    ].forEach(key => localStorage.removeItem(key));
+    await limpiarDatosFirebaseUsuario(username);
     const usuarioActual = getUsuarioActual();
     if (usuarioActual === username) {
         doLogout();
@@ -912,6 +920,7 @@ async function crearUsuarioDesdeAdmin() {
         const hash = await hashPassword(password, salt);
         usuarios.push({ username, salt, hash, rol: 'usuario' });
         saveUsuarios(usuarios);
+        await limpiarDatosFirebaseUsuario(username);
         usernameInput.value = '';
         passwordInput.value = '';
         if (confirmInput) confirmInput.value = '';
@@ -1903,7 +1912,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const productNameInput = document.getElementById('product-name');
     if (productNameInput) {
-        productNameInput.addEventListener('keydown', (e) => {
+        productNameInput.addEventListener('keyup', (e) => {
             if (e.key === 'Enter') {
                 const productPriceInput = document.getElementById('product-price');
                 if (productPriceInput) productPriceInput.focus();
@@ -1913,9 +1922,46 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const productPriceInput = document.getElementById('product-price');
     if (productPriceInput) {
-        productPriceInput.addEventListener('keydown', (e) => {
+        productPriceInput.addEventListener('keyup', (e) => {
             if (e.key === 'Enter') {
                 setTimeout(() => agregarProducto(), 0);
+            }
+        });
+    }
+
+    const shoppingNameInput = document.getElementById('shopping-name');
+    if (shoppingNameInput) {
+        shoppingNameInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                setTimeout(() => agregarDesdeShopping(), 0);
+            }
+        });
+    }
+
+    const loginUsernameInput = document.getElementById('login-username');
+    if (loginUsernameInput) {
+        loginUsernameInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                const loginPasswordInput = document.getElementById('login-password');
+                if (loginPasswordInput) loginPasswordInput.focus();
+            }
+        });
+    }
+
+    const loginPasswordInput = document.getElementById('login-password');
+    if (loginPasswordInput) {
+        loginPasswordInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                handleLoginSubmit();
+            }
+        });
+    }
+
+    const loginPasswordConfirmInput = document.getElementById('login-password-confirm');
+    if (loginPasswordConfirmInput) {
+        loginPasswordConfirmInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                handleLoginSubmit();
             }
         });
     }
@@ -1924,15 +1970,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (loginSubmitBtn) {
         loginSubmitBtn.addEventListener('click', (e) => {
             handleLoginSubmit();
-        });
-    }
-
-    const loginPasswordInput = document.getElementById('login-password');
-    if (loginPasswordInput) {
-        loginPasswordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                handleLoginSubmit();
-            }
         });
     }
 
