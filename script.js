@@ -721,7 +721,8 @@ async function eliminarUsuarioPorAdmin(username) {
             const docRef = window.firebaseSdk.doc(db, 'despensa', username);
             await window.firebaseSdk.deleteDoc(docRef);
         } catch (e) {
-            console.warn('Error eliminando documento de Firebase:', e);
+            console.error('Error eliminando documento de Firebase:', e);
+            showMessage('Usuario eliminado localmente, pero hubo un error al eliminar sus datos en la nube', 'error');
         }
     }
     const usuarioActual = getUsuarioActual();
@@ -1711,6 +1712,7 @@ async function initFirebase() {
             doc: dbModule.doc,
             getDoc: dbModule.getDoc,
             setDoc: dbModule.setDoc,
+            deleteDoc: dbModule.deleteDoc,
             serverTimestamp: dbModule.serverTimestamp
         };
         console.log('Firebase inicializado correctamente, firebaseDb disponible:', !!window.firebaseDb);

@@ -84,13 +84,16 @@ button.inline { display: inline-block; width: auto; margin-right: 8px; }
     font-size: 12px;
     font-weight: 600;
     z-index: 3000;
-    display: none;
+    display: block;
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
 }
-.sync-indicator.synced { background: #e8f5e9; color: #2e7d32; display: block; }
-.sync-indicator.saving { background: #fff3e0; color: #e65100; display: block; }
-.sync-indicator.local { background: #e3f2fd; color: #1565c0; display: block; }
-.sync-indicator.error { background: #ffebee; color: #c62828; display: block; }
+.sync-indicator.synced { background: #e8f5e9; color: #2e7d32; opacity: 1; }
+.sync-indicator.saving { background: #fff3e0; color: #e65100; opacity: 1; }
+.sync-indicator.local { background: #e3f2fd; color: #1565c0; opacity: 1; }
+.sync-indicator.error { background: #ffebee; color: #c62828; opacity: 1; }
 
 @media (max-width: 768px) {
     body { padding: 10px; }
